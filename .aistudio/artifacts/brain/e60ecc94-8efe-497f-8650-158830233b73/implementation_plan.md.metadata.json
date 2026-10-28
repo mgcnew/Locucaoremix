@@ -1,0 +1,6 @@
+{
+  "summary": "Plano de implementação para corrigir o Modo Diurno no Tailwind v4, aprimorar os textos gerados pelo agente de IA para soarem como um locutor comercial real e implementar as 3 durações (Curta 15s-20s, Média 30s-40s e Longa 60s-90s).",
+  "updatedAt": "2026-10-13T20:06:31.745208764Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

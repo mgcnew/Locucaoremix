@@ -1,0 +1,6 @@
+{
+  "name": "VozVarejo Studio - Locução Comercial para Mercados e Açougues",
+  "description": "Sistema profissional de criação, roteirização inteligente e locução comercial de ofertas para supermercados, mercearias e açougues com síntese de voz, templates sazonais e exportação de áudio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
