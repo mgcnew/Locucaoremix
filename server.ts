@@ -26,28 +26,57 @@ const getGeminiClient = () => {
   });
 };
 
-// Endpoint 1: Roteirizador Promocional com IA (Gemini 3.8 Flash)
-app.post('/api/generate-script', async (req: Request, res: Response) => {
-  try {
-    const {
-      storeName,
-      storeType = 'supermercado',
-      slogan = '',
-      location = '',
-      tone = 'varejao_energico',
-      targetDuration = '30s',
-      products = [],
-      customOfferText = '',
-      additionalNotes = '',
-      paymentMethods = 'Aceitamos cartões, dinheiro e Pix!',
-      openingGreeting = '',
-      closingPhrase = '',
-    } = req.body;
+const TEXT_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-3.8-flash'];
+const TTS_MODELS = ['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts'];
 
+async function generateTextWithFallback(
+  ai: GoogleGenAI,
+  prompt: string,
+  temperature = 0.8
+): Promise<string> {
+  let lastError: any = null;
+  for (const modelName of TEXT_MODELS) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature,
+        },
+      });
+      if (response.text) {
+        return response.text;
+      }
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`[VozVarejo] Modelo ${modelName} indisponível (${err?.status || err?.message}), tentando próximo...`);
+    }
+  }
+  throw lastError || new Error('Todos os modelos de texto estão ocupados no momento.');
+}
+
+// Endpoint 1: Roteirizador Promocional com IA
+app.post('/api/generate-script', async (req: Request, res: Response) => {
+  const {
+    storeName,
+    storeType = 'supermercado',
+    slogan = '',
+    location = '',
+    tone = 'varejao_energico',
+    targetDuration = 'media',
+    products = [],
+    customOfferText = '',
+    additionalNotes = '',
+    paymentMethods = 'Aceitamos cartões, dinheiro e Pix!',
+    openingGreeting = '',
+    closingPhrase = '',
+  } = req.body;
+
+  try {
     const ai = getGeminiClient();
 
     if (!ai) {
-      // Retorna fallback inteligente estruturado se a chave de API não estiver disponível
       const fallbackScript = generateFallbackScript({
         storeName: storeName || 'Nosso Estabelecimento',
         storeType,
@@ -63,20 +92,24 @@ app.post('/api/generate-script', async (req: Request, res: Response) => {
         script: fallbackScript.text,
         headline: fallbackScript.headline,
         callToAction: fallbackScript.cta,
-        audioTips: 'Ritmo acelerado nos preços e ênfase no nome da loja.',
+        audioTips: 'Ritmo comercial animado e destaque nos preços.',
         estimatedDuration: targetDuration,
-        note: 'Gerado via motor local de varejo.',
       });
     }
 
     const toneDescriptions: Record<string, string> = {
-      varejao_energico: 'Locução de varejão estilo carro de som e rádio popular: muito entusiasmada, rápida, enérgica, com jargões como "Atenção dona de casa!", "Preço baixo de verdade!", "Corre que vai acabar!".',
-      acougue_especial: 'Locução de especialista em carnes e churrasco: apetitosa, suculenta, destacando a qualidade dos cortes, maciez, carnes frescas inspecionadas e carnes para o churrasco perfeito.',
-      amigavel_acolhedor: 'Tom acolhedor, familiar, caloroso e simpático, transmitindo confiança, higiene, carinho e respeito ao cliente.',
-      festa_aniversario: 'Clima festivo e comemorativo de aniversário/festa de ofertas: confetes sonoros, celebração, "o aniversário é nosso, mas o presente é seu!", muita alegria contagiante.',
-      oferta_relampago: 'Alerta urgente de oferta relâmpago! "Atenção loja!", "É só enquanto durar o estoque!", ritmo acelerado, cria senso imediato de escassez.',
-      final_de_semana: 'Foco total no sextou, sabadão e domingão em família: cerveja gelada, carnes na brasa, economia para o fim de semana.',
-      fechamento_loja: 'Última chamada antes de fechar! Ofertas finais do dia para levar agora mesmo para casa.',
+      varejao_energico:
+        'Locução de varejão estilo rádio popular: entusiasmada, rápida, enérgica, com chamadas como "Atenção clientes!", "Preço baixo de verdade!", "Corre aproveitar!".',
+      acougue_especial:
+        'Locução especialista em carnes e churrasco: apetitosa, destacando a qualidade dos cortes, maciez, carnes frescas selecionadas para o churrasco ou dia a dia.',
+      amigavel_acolhedor:
+        'Tom acolhedor, familiar, simpático e próximo do cliente, transmitindo confiança, qualidade e carinho.',
+      festa_aniversario:
+        'Clima festivo de aniversário e campanha especial: muita alegria, celebração e preços de festa.',
+      oferta_relampago:
+        'Alerta urgente de oferta relâmpago: "Atenção loja!", "É só enquanto durar o estoque!", ritmo dinâmico.',
+      final_de_semana:
+        'Foco no fim de semana em família: churrasco, bebida gelada, almoço especial e economia.',
     };
 
     const durationNormalized =
@@ -86,87 +119,74 @@ app.post('/api/generate-script', async (req: Request, res: Response) => {
         ? 'longa'
         : 'media';
 
-    const durationConfigs: Record<string, { label: string; range: string; words: string; structure: string }> = {
+    const durationConfigs: Record<string, { label: string; range: string; words: string }> = {
       curta: {
         label: 'Curta (15 a 20 segundos)',
         range: '15s a 20s',
-        words: '35 a 50 palavras no total',
-        structure: 'Gancho imediato de impacto e escuta no som da loja + citação rápida e enfática do nome do estabelecimento + oferta principal com preço de impacto + chamada urgente para aproveitar agora.',
+        words: '35 a 50 palavras',
       },
       media: {
         label: 'Média (30 a 40 segundos)',
         range: '30s a 40s',
-        words: '75 a 95 palavras no total',
-        structure: 'Saudação vibrante de rádio/som de loja + anúncio com o nome da loja + apresentação de 2 a 4 ofertas com comparação De/Por e apetite appeal + menção a formas de pagamento e facilidades + convite caloroso de encerramento.',
+        words: '70 a 95 palavras',
       },
       longa: {
         label: 'Longa (60 a 90 segundos)',
         range: '60s a 90s',
-        words: '145 a 195 palavras no total',
-        structure: 'Abertura de grande encarte comercial de rádio + apresentação dos setores (açougue com carnes nobres frescas, hortifrúti e despensa) + todas as ofertas detalhadas com benefícios e preços irresistíveis + facilidades de pagamento (cartões e Pix) + assinatura com o nome do estabelecimento e slogan convidando a família inteira.',
+        words: '140 a 185 palavras',
       },
     };
 
     const currentDurationConfig = durationConfigs[durationNormalized];
 
-    const prompt = `Você é uma das maiores vozes da locução comercial de rádio, carro de som e rádio interna de supermercados e açougues do Brasil.
-Sua missão é criar um texto que SOE EXATAMENTE COMO UM LOCUTOR PROFISSIONAL DE VERDADE FALANDO NO MICROFONE COM OS CLIENTES NA LOJA.
+    const prompt = `Você é um locutor comercial profissional de supermercados e açougues no Brasil.
+Crie um texto pronto para locução que soe natural, humano e vendedor no microfone da loja.
 
-DADOS DO ESTABELECIMENTO:
-- Nome da Loja: "${storeName || 'Nosso Estabelecimento'}"
-- Segmento: ${storeType === 'acougue' ? 'Açougue e Casa de Carnes' : storeType === 'supermercado' ? 'Supermercado e Mercearia' : 'Varejo e Atacarejo'}
-- Slogan/Diferencial: "${slogan || 'Onde sua economia e qualidade acontecem de verdade'}"
-- Localização: "${location || ''}"
-- Estilo e Perfil da Locução: ${toneDescriptions[tone] || toneDescriptions.varejao_energico}
-- DURAÇÃO EXATA: ${currentDurationConfig.label}
-- META DE EXTENSÃO: O texto DEVE TER ENTRE ${currentDurationConfig.words} (não faça nem mais curto, nem mais longo).
-- ESTRUTURA RECOMENDADA: ${currentDurationConfig.structure}
-- Formas de Pagamento: "${paymentMethods}"
-${openingGreeting ? `- Saudação inicial personalizada solicitada: "${openingGreeting}"` : ''}
-${closingPhrase ? `- Assinatura de encerramento personalizada solicitada: "${closingPhrase}"` : ''}
+DADOS:
+- Estabelecimento: "${storeName || 'Nosso Mercado'}"
+- Segmento: ${storeType === 'acougue' ? 'Açougue e Casa de Carnes' : 'Supermercado e Varejo'}
+- Estilo da Locução: ${toneDescriptions[tone] || toneDescriptions.varejao_energico}
+- Duração desejada: ${currentDurationConfig.label} (${currentDurationConfig.words})
+- Pagamento: "${paymentMethods}"
+${slogan ? `- Slogan: "${slogan}"` : ''}
+${location ? `- Endereço: "${location}"` : ''}
+${openingGreeting ? `- Abertura: "${openingGreeting}"` : ''}
+${closingPhrase ? `- Fechamento: "${closingPhrase}"` : ''}
 
-PRODUTOS E OFERTAS:
-${products && products.length > 0 
-  ? products.map((p: any, i: number) => {
-      const dePor = p.regularPrice ? `(De R$ ${p.regularPrice} por APENAS R$ ${p.promoPrice})` : `(Por APENAS R$ ${p.promoPrice})`;
-      return `${i + 1}. ${p.name} ${dePor} / ${p.unit || 'kg'} ${p.limit ? `[Limite: ${p.limit}]` : ''} ${p.details ? `[Obs: ${p.details}]` : ''}`;
-    }).join('\n')
-  : (customOfferText || 'Ofertas imperdíveis preparadas para hoje!')}
+OFERTAS PARA ANUNCIAR:
+${
+  products && products.length > 0
+    ? products
+        .map((p: any, i: number) => {
+          const dePor = p.regularPrice
+            ? `(De R$ ${p.regularPrice} por R$ ${p.promoPrice})`
+            : `(Por apenas R$ ${p.promoPrice})`;
+          return `${i + 1}. ${p.name} ${dePor} ${p.unit || 'kg'}`;
+        })
+        .join('\n')
+    : customOfferText || 'Ofertas especiais selecionadas hoje!'
+}
+${additionalNotes ? `Observação extra: ${additionalNotes}` : ''}
 
-${additionalNotes ? `INSTRUÇÕES EXTRAS DO CLIENTE: ${additionalNotes}` : ''}
+REGRAS:
+1. Escreva um texto corrido pronto para ser falado no microfone, sem marcações de palco como "[música]" ou "[locutor]".
+2. Cite o nome "${storeName || 'nossa loja'}" na abertura e no encerramento.
+3. Respeite a quantidade de palavras (${currentDurationConfig.words}).
 
-SEGREDO DO LOCUTOR DE VERDADE (SIGA RIGOROSAMENTE):
-1. FALA ORAL, VIVA E HUMANA: Use a linguagem falada real de quem está no microfone da rádio interna ou rádio comercial (ex: "Atenção clientes e amigos do ${storeName}!", "Parou tudo!", "Olha a economia passando no seu carrinho!", "Segura essa oferta!").
-2. PRONÚNCIA ENVOLVENTE DOS PREÇOS: Escreva os valores por extenso ou de forma fonética rítmica para o locutor falar com prazer comercial (ex: "por apenas quarenta e nove e noventa o quilo!", "por só três e quarenta e nove a unidade!").
-3. PONTUAÇÃO DE RESPIRAÇÃO: Use exclamações e vírgulas para dar ritmo cadenciado, sem frases longas que façam o locutor perder o fôlego.
-4. NOME DA LOJA EM DESTAQUE: Cite o nome "${storeName || 'nossa loja'}" com orgulho no início e no fechamento.
-5. APETITE E CONVERSÃO: Destaque a maciez das carnes, o frescor dos cortes, a gelada da cerveja e a economia real para o bolso.
-6. RESPEITO ABSOLUTO À DURAÇÃO: Entregue um texto com ${currentDurationConfig.words}.
-
-Retorne EXCLUSIVAMENTE um objeto JSON válido no seguinte formato:
+Retorne APENAS um JSON válido:
 {
-  "headline": "Título chamativo do anúncio para identificação interna",
-  "script": "Texto completo da locução pronto para o locutor falar no microfone",
-  "callToAction": "Chamada curta de fechamento",
-  "audioTips": "Dica de entonação para o locutor",
+  "headline": "Título curto da campanha",
+  "script": "Texto completo da locução",
+  "callToAction": "Frase final de impacto",
+  "audioTips": "Dica breve de entonação",
   "estimatedDuration": "${currentDurationConfig.range}"
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        temperature: 0.85,
-      },
-    });
-
-    const text = response.text || '';
-    let parsedData;
+    const text = await generateTextWithFallback(ai, prompt, 0.85);
+    let parsedData: any;
     try {
       parsedData = JSON.parse(text);
     } catch {
-      // fallback parsing
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         parsedData = JSON.parse(jsonMatch[0]);
@@ -178,24 +198,13 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido no seguinte formato:
     return res.json({
       success: true,
       script: parsedData.script,
-      headline: parsedData.headline || `Ofertas do ${storeName}`,
-      callToAction: parsedData.callToAction || `Vem correndo pro ${storeName}!`,
-      audioTips: parsedData.audioTips || 'Utilize um sino de chamada antes do anúncio.',
-      estimatedDuration: parsedData.estimatedDuration || targetDuration,
+      headline: parsedData.headline || `Ofertas - ${storeName}`,
+      callToAction: parsedData.callToAction || `Vem pro ${storeName}!`,
+      audioTips: parsedData.audioTips || 'Fale com entusiasmo e destaque os preços.',
+      estimatedDuration: parsedData.estimatedDuration || currentDurationConfig.range,
     });
   } catch (error: any) {
-    console.warn('Gemini API indisponível temporariamente, acionando motor inteligente local de varejo:', error?.message);
-    const {
-      storeName,
-      storeType = 'supermercado',
-      slogan = '',
-      tone = 'varejao_energico',
-      targetDuration = 'media',
-      products = [],
-      customOfferText = '',
-      paymentMethods = 'Aceitamos cartões, dinheiro e Pix!',
-    } = req.body;
-
+    console.warn('Usando gerador local de contingência para roteiro:', error?.message);
     const fallbackScript = generateFallbackScript({
       storeName: storeName || 'Nosso Estabelecimento',
       storeType,
@@ -212,155 +221,223 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido no seguinte formato:
       script: fallbackScript.text,
       headline: fallbackScript.headline,
       callToAction: fallbackScript.cta,
-      audioTips: 'Ritmo acelerado nos preços e ênfase no nome da loja.',
+      audioTips: 'Ritmo comercial animado e ênfase no nome da loja.',
       estimatedDuration: targetDuration,
-      note: 'Gerado com sucesso via motor de contingência de varejo.',
     });
   }
 });
 
 // Endpoint 2: Refinar / Ajustar Roteiro existente com IA
 app.post('/api/refine-script', async (req: Request, res: Response) => {
-  try {
-    const { originalScript, instruction, storeName } = req.body;
-    if (!originalScript || !instruction) {
-      return res.status(400).json({ error: 'Roteiro e instrução de ajuste são obrigatórios.' });
-    }
+  const { originalScript, instruction, storeName } = req.body;
+  if (!originalScript || !instruction) {
+    return res.status(400).json({
+      success: false,
+      error: 'Roteiro e instrução de ajuste são obrigatórios.',
+    });
+  }
 
+  try {
     const ai = getGeminiClient();
     if (!ai) {
+      const refined = applyLocalRefinement(originalScript, instruction, storeName);
       return res.json({
         success: true,
-        script: `${originalScript}\n\n[Ajuste: ${instruction}]`,
+        script: refined,
       });
     }
 
-    const prompt = `Você é um redator sênior de rádio e locução comercial de varejo.
-Aqui está um roteiro comercial para o estabelecimento "${storeName || 'nossa loja'}":
+    const prompt = `Você é um locutor e redator comercial especialista em supermercados e açougues.
+Reescreva o roteiro abaixo aplicando o pedido de ajuste do cliente.
+
+ESTABELECIMENTO: "${storeName || 'Nossa Loja'}"
 
 ROTEIRO ATUAL:
 "${originalScript}"
 
-INSTRUÇÃO DE AJUSTE DO CLIENTE:
+PEDIDO DE AJUSTE:
 "${instruction}"
 
-Reescreva o roteiro aplicando exatamente o ajuste solicitado, mantendo o tom profissional, vendedor e envolvente de supermercado/açougue.
+REGRAS:
+- Entregue APENAS o texto falado pelo locutor (sem colchetes como [Locutor] ou [Música]).
+- Mantenha os produtos e preços do roteiro atual, aplicando o ajuste pedido.
+
 Retorne EXCLUSIVAMENTE um objeto JSON:
 {
-  "script": "Texto ajustado da locução"
+  "script": "Texto ajustado da locução pronto para falar"
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-      },
-    });
+    const text = await generateTextWithFallback(ai, prompt, 0.75);
+    let parsed: any = {};
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]);
+      }
+    }
 
-    const parsed = JSON.parse(response.text || '{}');
+    if (parsed && parsed.script) {
+      return res.json({
+        success: true,
+        script: parsed.script,
+      });
+    }
+
+    const fallbackRefined = applyLocalRefinement(originalScript, instruction, storeName);
     return res.json({
       success: true,
-      script: parsed.script || originalScript,
+      script: fallbackRefined,
     });
   } catch (error: any) {
-    console.error('Erro ao refinar roteiro:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao refinar roteiro.',
+    console.warn('Usando refinador local inteligente:', error?.message);
+    const refined = applyLocalRefinement(originalScript, instruction, storeName);
+    return res.json({
+      success: true,
+      script: refined,
     });
   }
 });
 
-// Endpoint 3: Síntese de Voz Profissional (Gemini 3.8 Flash Lite TTS)
+// Endpoint 3: Síntese de Voz Profissional (Gemini TTS)
 app.post('/api/generate-tts', async (req: Request, res: Response) => {
-  try {
-    const {
-      text,
-      voiceName = 'Fenrir', // 'Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'
-      tone = 'varejao_energico',
-    } = req.body;
+  const {
+    text,
+    voiceName = 'Fenrir',
+    tone = 'varejao_energico',
+  } = req.body;
 
-    if (!text || typeof text !== 'string') {
-      return res.status(400).json({ error: 'Texto para locução é obrigatório.' });
-    }
+  if (!text || typeof text !== 'string') {
+    return res.status(400).json({ error: 'Texto para locução é obrigatório.' });
+  }
 
-    const ai = getGeminiClient();
-    if (!ai) {
-      return res.status(400).json({
-        success: false,
-        fallbackToWebSpeech: true,
-        error: 'Chave GEMINI_API_KEY não configurada no servidor. Usando síntese nativa de voz do navegador.',
-      });
-    }
-
-    const styleByTone: Record<string, string> = {
-      varejao_energico: 'Locutor de supermercado e varejo popular muito animado, voz alta, ritmo comercial acelerado, alegre e confiante.',
-      acougue_especial: 'Locutor caloroso e experiente de casa de carnes, voz encorpada, convidativa para churrasco e carnes nobres.',
-      amigavel_acolhedor: 'Locutor acolhedor, tom simpático de vizinhança, cordial, caloroso e atencioso.',
-      festa_aniversario: 'Locutor festivo, empolgadíssimo, comemorando aniversário de loja e festival de prêmios.',
-      oferta_relampago: 'Locutor urgente, com muita energia, chamando atenção imediata para ofertas que vão acabar agora.',
-      final_de_semana: 'Locutor animado de fim de semana, com energia de lazer, churrasco e festa em família.',
-      fechamento_loja: 'Locutor solícito de última hora, alertando com dinamismo para o fechamento.',
-    };
-
-    const chosenStyle = styleByTone[tone] || styleByTone.varejao_energico;
-
-    // Conforme SKILL.md de gemini-api:
-    // Modelo: "gemini-3.8-flash-lite-tts"
-    // Unary default: completo WAV file (audio/wav, RIFF header, 24kHz mono 16-bit).
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash-lite-tts',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: text,
-              speechMetadata: {
-                style: chosenStyle,
-              },
-            },
-          ],
-        },
-      ],
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voiceName },
-          },
-        },
-      },
-    });
-
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
-    if (!base64Audio) {
-      return res.json({
-        success: false,
-        fallbackToWebSpeech: true,
-        error: 'Não foi possível sintetizar o áudio com a API de voz. Alternando para voz local.',
-      });
-    }
-
-    return res.json({
-      success: true,
-      audioBase64: base64Audio,
-      mimeType: 'audio/wav',
-      voiceName,
-    });
-  } catch (error: any) {
-    console.warn('Erro ou demanda alta no TTS Gemini, alternando para síntese nativa:', error?.message);
+  const ai = getGeminiClient();
+  if (!ai) {
     return res.json({
       success: false,
       fallbackToWebSpeech: true,
-      error: 'Voz da nuvem ocupada. Reproduzindo via síntese de voz nativa.',
+      error: 'Chave GEMINI_API_KEY não configurada.',
     });
   }
+
+  const styleByTone: Record<string, string> = {
+    varejao_energico:
+      'Locutor comercial de supermercado brasileiro muito animado, voz firme, ritmo dinâmico e alegre.',
+    acougue_especial:
+      'Locutor caloroso de casa de carnes e churrasco, voz encorpada e convidativa.',
+    amigavel_acolhedor:
+      'Locutor simpático, acolhedor, cordial e próximo dos clientes.',
+    festa_aniversario:
+      'Locutor empolgado comemorando grande festa de aniversário de ofertas.',
+    oferta_relampago:
+      'Locutor urgente e vibrante anunciando oferta relâmpago.',
+    final_de_semana:
+      'Locutor animado anunciando ofertas de fim de semana e churrasco.',
+  };
+
+  const chosenStyle = styleByTone[tone] || styleByTone.varejao_energico;
+
+  for (const ttsModel of TTS_MODELS) {
+    try {
+      const response = await ai.models.generateContent({
+        model: ttsModel,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: text,
+                speechMetadata: {
+                  style: chosenStyle,
+                },
+              },
+            ],
+          },
+        ],
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: voiceName },
+            },
+          },
+        },
+      });
+
+      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (base64Audio) {
+        return res.json({
+          success: true,
+          audioBase64: base64Audio,
+          mimeType: 'audio/wav',
+          voiceName,
+        });
+      }
+    } catch (error: any) {
+      console.warn(`[VozVarejo] TTS ${ttsModel} falhou (${error?.message}), tentando alternativa...`);
+    }
+  }
+
+  return res.json({
+    success: false,
+    fallbackToWebSpeech: true,
+    error: 'Serviço de voz ocupado no momento.',
+  });
 });
 
-// Helper de Fallback sem API com suporte às 3 durações de locução
+// Refinador inteligente local caso a API de texto passe por pico de demanda
+function applyLocalRefinement(originalScript: string, instruction: string, storeName = 'nossa loja'): string {
+  const lower = instruction.toLowerCase();
+  let text = originalScript.trim();
+
+  if (lower.includes('curt') || lower.includes('encurtar') || lower.includes('resum')) {
+    const sentences = text
+      .split(/(?<=[.!])\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (sentences.length > 3) {
+      const first = sentences[0];
+      const middle = sentences.slice(1, Math.max(2, Math.ceil(sentences.length * 0.6))).join(' ');
+      const last = sentences[sentences.length - 1];
+      return `${first} ${middle} Aproveite já no ${storeName}! ${last}`;
+    }
+    return `Atenção clientes do ${storeName}! Oferta rápida: ${text}`;
+  }
+
+  if (lower.includes('energ') || lower.includes('animad') || lower.includes('varej')) {
+    const cleaned = text.replace(/^Atenção[^!]*!\s*/i, '');
+    return `ATENÇÃO LOJA! PAROU TUDO NO ${storeName.toUpperCase()}! Olha o preço baixo passando no seu carrinho agora! ${cleaned} Corre que é só hoje, vem aproveitar!`;
+  }
+
+  if (lower.includes('carn') || lower.includes('churrasc') || lower.includes('brasa') || lower.includes('maciez')) {
+    return `Atenção amantes de um bom churrasco! Cortes selecionados, fresquinhos e com aquela maciez de dar água na boca aqui no ${storeName}! ${text} Garanta já a carne perfeita para a sua grelha!`;
+  }
+
+  if (lower.includes('pix') || lower.includes('cart')) {
+    if (!text.toLowerCase().includes('pix')) {
+      return `${text} E para facilitar suas compras, aceitamos Pix, cartões de débito e crédito!`;
+    }
+    return `${text} Pague com toda facilidade no Pix ou no cartão aqui no ${storeName}!`;
+  }
+
+  if (lower.includes('acolhedor') || lower.includes('amig') || lower.includes('famíl') || lower.includes('suav')) {
+    const cleaned = text.replace(/PAROU TUDO!?/gi, 'Que alegria receber você aqui!');
+    return `Olá amigos e clientes do ${storeName}, sejam muito bem-vindos! Preparamos com todo carinho ofertas especiais para a mesa da sua família: ${cleaned}`;
+  }
+
+  // Instrução livre personalizada
+  const cleanInstruction = instruction
+    .replace(/^(adicione que|fale que|inclua que|diga que|coloque que)\s+/i, '')
+    .trim();
+  const formattedAddition =
+    cleanInstruction.charAt(0).toUpperCase() + cleanInstruction.slice(1);
+  const endingPunctuation = /[.!?]$/.test(formattedAddition) ? '' : '!';
+
+  return `${text} Lembrando você: ${formattedAddition}${endingPunctuation} Esperamos você no ${storeName}!`;
+}
+
+// Helper de Fallback para criação de roteiro
 function generateFallbackScript(params: {
   storeName: string;
   storeType: string;
@@ -378,46 +455,48 @@ function generateFallbackScript(params: {
   let itemsText = '';
   if (products && products.length > 0) {
     if (isCurta) {
-      // Pega o produto principal para impacto rápido
       const p = products[0];
-      itemsText = `tem ${p.name}, de ${p.regularPrice ? `R$ ${p.regularPrice}` : 'preço de tabela'} por APENAS R$ ${p.promoPrice} o ${p.unit || 'quilo'}!`;
+      itemsText = `tem ${p.name} por APENAS R$ ${p.promoPrice} ${p.unit || 'o quilo'}!`;
     } else if (isLonga) {
       itemsText = products
         .map(
           (p) =>
-            `No setor de ofertas tem ${p.name}, com corte selecionado e fresco, de ${p.regularPrice ? `R$ ${p.regularPrice}` : 'preço normal'} por APENAS R$ ${p.promoPrice} o ${p.unit || 'quilo'}! ${p.details ? `Observação: ${p.details}.` : ''}`
+            `No nosso balcão de ofertas tem ${p.name}, qualidade selecionada, ${
+              p.regularPrice ? `de R$ ${p.regularPrice} ` : ''
+            }por APENAS R$ ${p.promoPrice} ${p.unit || 'o quilo'}!`
         )
-        .join(' E tem mais economia imperdível! ');
+        .join(' E tem mais economia para você: ');
     } else {
       itemsText = products
-        .slice(0, 3)
+        .slice(0, 4)
         .map(
           (p) =>
-            `Tem ${p.name}, de ${p.regularPrice ? `R$ ${p.regularPrice}` : 'preço normal'} por APENAS R$ ${p.promoPrice} o ${p.unit || 'quilo'}!`
+            `Tem ${p.name}${p.regularPrice ? ` de R$ ${p.regularPrice}` : ''} por APENAS R$ ${p.promoPrice} ${p.unit || 'o quilo'}!`
         )
-        .join(' E não para por aí! ');
+        .join(' E não para por aí: ');
     }
   } else {
-    itemsText = customOfferText || 'ofertas imperdíveis preparadas especialmente para você economizar de verdade no seu carrinho!';
+    itemsText =
+      customOfferText ||
+      'ofertas especiais preparadas hoje para você economizar de verdade!';
   }
 
   let script = '';
   if (isCurta) {
-    script = `Atenção loja, atenção clientes do ${storeName}! Alerta de oferta rápida! Só agora: ${itemsText} Corre para aproveitar enquanto durar o estoque! ${storeName}!`;
+    script = `Atenção clientes do ${storeName}! Oferta rápida passando agora: ${itemsText} Corre aproveitar enquanto durar o estoque no ${storeName}!`;
   } else if (isLonga) {
-    script = `Atenção clientes e amigos do ${storeName}! Parou tudo para ouvir o festival de ofertas da semana! Quem pesquisa, compra aqui! ${itemsText} É produto de primeira qualidade direto para a sua mesa com economia que você sente no bolso! E para facilitar suas compras, ${paymentMethods} Venha agora mesmo com toda a família e aproveite! ${storeName} — ${slogan || 'a sua melhor escolha todo dia!'}`;
+    script = `Atenção clientes e amigos do ${storeName}! Parou tudo para ouvir o nosso festival de ofertas! Quem pesquisa qualidade e preço baixo compra aqui! ${itemsText} É produto fresquinho e selecionado direto para a mesa da sua família! ${paymentMethods} Venha aproveitar agora mesmo no ${storeName}${slogan ? ` — ${slogan}` : ''}!`;
   } else {
-    script = `Atenção clientes amigos do ${storeName}! Parou tudo para ouvir as melhores ofertas preparadas para você! ${itemsText} É preço baixo de verdade e procedência que cabe no seu bolso! Aproveite agora mesmo! ${paymentMethods} ${storeName} — ${slogan || 'onde seu dinheiro rende muito mais!'}`;
+    script = `Atenção clientes amigos do ${storeName}! Confira as ofertas imperdíveis que preparamos para você hoje! ${itemsText} Qualidade garantida e economia de verdade para o seu bolso! ${paymentMethods} Vem pro ${storeName}!`;
   }
 
   return {
-    headline: `Super Ofertas - ${storeName}`,
+    headline: `Ofertas - ${storeName}`,
     text: script,
-    cta: `Corra e garanta suas ofertas no ${storeName}!`,
+    cta: `Aproveite hoje no ${storeName}!`,
   };
 }
 
-// Configuração Vite Middleware ou Static
 async function startServer() {
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static('dist'));

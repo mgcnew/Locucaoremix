@@ -3,7 +3,6 @@ import { Header } from './components/Header';
 import { LocutionStudio } from './components/LocutionStudio';
 import { TemplatesView } from './components/TemplatesView';
 import { HistoryView } from './components/HistoryView';
-import { StoreRadioPlayer } from './components/StoreRadioPlayer';
 import { StoreSettingsModal } from './components/StoreSettingsModal';
 import { StoreProfile, SavedLocution, SeasonalTemplate } from './types';
 
@@ -30,9 +29,9 @@ const INITIAL_SAVED_LOCUTIONS: SavedLocution[] = [
     voiceName: 'Fenrir (Voz Grave & Varejão)',
     voiceGender: 'masculino',
     products: [
-      { id: 'p1', name: 'Picanha Maturada', promoPrice: '49.90', unit: 'kg' },
-      { id: 'p2', name: 'Fraldinha Especial', promoPrice: '32.90', unit: 'kg' },
-      { id: 'p3', name: 'Linguiça Toscana', promoPrice: '18.90', unit: 'kg' },
+      { id: 'p1', name: 'Picanha Maturada', promoPrice: '49,90', unit: 'kg' },
+      { id: 'p2', name: 'Fraldinha Especial', promoPrice: '32,90', unit: 'kg' },
+      { id: 'p3', name: 'Linguiça Toscana', promoPrice: '18,90', unit: 'kg' },
     ],
     chimeSound: 'supermarket_bell',
     isFavorite: true,
@@ -49,9 +48,9 @@ const INITIAL_SAVED_LOCUTIONS: SavedLocution[] = [
     voiceName: 'Puck (Voz Jovem & Dinâmica)',
     voiceGender: 'masculino',
     products: [
-      { id: 'p4', name: 'Alcatra com Maminha', promoPrice: '34.90', unit: 'kg' },
-      { id: 'p5', name: 'Coxão Mole', promoPrice: '29.90', unit: 'kg' },
-      { id: 'p6', name: 'Acém Moído', promoPrice: '22.90', unit: 'kg' },
+      { id: 'p4', name: 'Alcatra com Maminha', promoPrice: '34,90', unit: 'kg' },
+      { id: 'p5', name: 'Coxão Mole', promoPrice: '29,90', unit: 'kg' },
+      { id: 'p6', name: 'Acém Moído', promoPrice: '22,90', unit: 'kg' },
     ],
     chimeSound: 'supermarket_bell',
     isFavorite: false,
@@ -59,10 +58,9 @@ const INITIAL_SAVED_LOCUTIONS: SavedLocution[] = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'studio' | 'templates' | 'radio' | 'history'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'templates' | 'history'>('studio');
   const [storeModalOpen, setStoreModalOpen] = useState(false);
 
-  // Tema: 'light' (diurno) por padrão, persistido no localStorage
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
       const saved = localStorage.getItem('vozvarejo_theme');
@@ -72,7 +70,6 @@ export default function App() {
     }
   });
 
-  // Atualiza classe 'dark' e colorScheme no html root
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
@@ -93,7 +90,6 @@ export default function App() {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  // Perfil da Loja em LocalStorage
   const [storeProfile, setStoreProfile] = useState<StoreProfile>(() => {
     try {
       const saved = localStorage.getItem('vozvarejo_store_profile');
@@ -103,7 +99,6 @@ export default function App() {
     }
   });
 
-  // Lista de Locuções Salvas em LocalStorage
   const [savedLocutions, setSavedLocutions] = useState<SavedLocution[]>(() => {
     try {
       const saved = localStorage.getItem('vozvarejo_saved_locutions');
@@ -113,10 +108,8 @@ export default function App() {
     }
   });
 
-  // Template selecionado para carregar no estúdio
   const [templateToLoad, setTemplateToLoad] = useState<SeasonalTemplate | null>(null);
 
-  // Persistência
   useEffect(() => {
     try {
       localStorage.setItem('vozvarejo_store_profile', JSON.stringify(storeProfile));
@@ -146,9 +139,7 @@ export default function App() {
   };
 
   const handleDeleteLocution = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta locução do histórico?')) {
-      setSavedLocutions(savedLocutions.filter((loc) => loc.id !== id));
-    }
+    setSavedLocutions(savedLocutions.filter((loc) => loc.id !== id));
   };
 
   const handleLoadIntoStudio = (item: SavedLocution) => {
@@ -174,28 +165,21 @@ export default function App() {
     setActiveTab('studio');
   };
 
-  const handleImportBackup = (items: SavedLocution[]) => {
-    setSavedLocutions(items);
-  };
-
   return (
-    <div className="min-h-screen bg-neutral-50/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors selection:bg-amber-400 selection:text-slate-950">
-      {/* Top Header */}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        storeProfile={storeProfile}
-        onOpenStoreModal={() => setStoreModalOpen(true)}
         savedCount={savedLocutions.length}
         theme={theme}
         onToggleTheme={handleToggleTheme}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6">
         {activeTab === 'studio' && (
           <LocutionStudio
             storeProfile={storeProfile}
+            onUpdateStoreProfile={setStoreProfile}
             onOpenStoreModal={() => setStoreModalOpen(true)}
             onSaveLocution={handleSaveLocution}
             activeTemplateToLoad={templateToLoad}
@@ -210,45 +194,22 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'radio' && (
-          <StoreRadioPlayer
-            savedList={savedLocutions}
-            activeStoreName={storeProfile.name}
-          />
-        )}
-
         {activeTab === 'history' && (
           <HistoryView
             savedList={savedLocutions}
             onToggleFavorite={handleToggleFavorite}
             onDelete={handleDeleteLocution}
             onLoadIntoStudio={handleLoadIntoStudio}
-            onImportBackup={handleImportBackup}
           />
         )}
       </main>
 
-      {/* Modal de Configuração do Estabelecimento */}
       <StoreSettingsModal
         isOpen={storeModalOpen}
         onClose={() => setStoreModalOpen(false)}
         profile={storeProfile}
         onSave={(updated) => setStoreProfile(updated)}
       />
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200/60 dark:border-slate-800/60 py-4 text-center text-xs text-slate-400">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div>
-            VozVarejo Studio &bull; Locução Comercial para Açougues & Supermercados
-          </div>
-          <div className="flex items-center gap-2">
-            <span>Síntese de Voz Gemini & Web Audio</span>
-            <span>&bull;</span>
-            <span>Exportação MP3</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

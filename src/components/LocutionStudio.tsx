@@ -26,11 +26,8 @@ import {
   Store,
   Bell,
   Wand2,
-  FileAudio,
-  ArrowRight,
-  ArrowLeft,
   CheckCircle2,
-  SlidersHorizontal,
+  Settings2,
 } from 'lucide-react';
 import {
   createMixedAudioBuffer,
@@ -42,6 +39,7 @@ import {
 
 interface Props {
   storeProfile: StoreProfile;
+  onUpdateStoreProfile: (updated: StoreProfile) => void;
   onOpenStoreModal: () => void;
   onSaveLocution: (locution: SavedLocution) => void;
   activeTemplateToLoad?: SeasonalTemplate | null;
@@ -50,76 +48,76 @@ interface Props {
 
 export const LocutionStudio: React.FC<Props> = ({
   storeProfile,
+  onUpdateStoreProfile,
   onOpenStoreModal,
   onSaveLocution,
   activeTemplateToLoad,
   onClearTemplateToLoad,
 }) => {
-  // Aba interna ativa (1. Ofertas, 2. Roteiro, 3. Gravação)
-  const [studioStep, setStudioStep] = useState<'offers' | 'script' | 'audio'>('offers');
-
   // Configurações da Campanha
   const [tone, setTone] = useState<LocutionTone>('varejao_energico');
   const [targetDuration, setTargetDuration] = useState<TargetDuration>('media');
   const [products, setProducts] = useState<ProductItem[]>([
     {
       id: '1',
-      name: 'Picanha Bovina Friboi Maturada',
-      regularPrice: '69.90',
-      promoPrice: '49.90',
+      name: 'Picanha Bovina Maturada',
+      promoPrice: '49,90',
       unit: 'kg',
-      details: 'Capa uniforme',
-      limit: '5kg/cliente',
     },
     {
       id: '2',
-      name: 'Linguiça Toscana Perdigão',
-      regularPrice: '26.90',
-      promoPrice: '18.90',
+      name: 'Linguiça Toscana Especial',
+      promoPrice: '18,90',
       unit: 'kg',
     },
     {
       id: '3',
       name: 'Carvão Vegetal 3kg',
-      regularPrice: '18.50',
-      promoPrice: '13.90',
+      promoPrice: '13,90',
       unit: 'pacote',
     },
   ]);
-  const [customOfferText, setCustomOfferText] = useState('');
-  const [additionalNotes, setAdditionalNotes] = useState('');
 
-  // Voz & Efeitos
+  // Voz & Vinheta
   const [selectedVoice, setSelectedVoice] = useState('Fenrir');
   const [chimeSound, setChimeSound] = useState<ChimeSoundType>('supermarket_bell');
 
   // Roteiro
-  const [headline, setHeadline] = useState('Sextou com Picanha e Churrasco');
+  const [headline, setHeadline] = useState('Ofertas da Semana');
   const [scriptText, setScriptText] = useState(
-    `Atenção clientes amigos do ${storeProfile.name || 'nosso estabelecimento'}! Parou tudo para ouvir as melhores ofertas da semana! Tem Picanha bovina maturada de primeira, de sessenta e nove e noventa por APENAS quarenta e nove e noventa o quilo! E não para por aí: tem linguiça toscana a dezoito e noventa o quilo, e carvão vegetal saco de três quilos a treze e noventa! Acenda a brasa e venha economizar no ${storeProfile.name || 'nosso estabelecimento'}!`
+    `Atenção clientes amigos do ${storeProfile.name || 'nosso estabelecimento'}! Parou tudo para ouvir as melhores ofertas de hoje! Tem Picanha Bovina Maturada de primeira por apenas quarenta e nove e noventa o quilo! Linguiça Toscana Especial fresquinha a dezoito e noventa o quilo, e Carvão Vegetal pacote de três quilos por apenas treze e noventa! Qualidade garantida e economia de verdade para sua família! Vem aproveitar no ${storeProfile.name || 'nosso estabelecimento'}!`
   );
-  const [audioTips, setAudioTips] = useState('Entonação animada e ritmo comercial de rádio popular.');
 
   // Refinamento com IA
   const [refineInstruction, setRefineInstruction] = useState('');
   const [isRefining, setIsRefining] = useState(false);
+  const [refineSuccessMessage, setRefineSuccessMessage] = useState<string | null>(null);
 
-  // Estados de Carregamento
+  // Estados de Carregamento e Feedback
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [isSynthesizingAudio, setIsSynthesizingAudio] = useState(false);
+  const [isDownloadingMp3, setIsDownloadingMp3] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: 'success' | 'info' | 'error';
+    text: string;
+  } | null>(null);
 
   // Áudio Gerado
   const [generatedAudioBase64, setGeneratedAudioBase64] = useState<string | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
-  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
-  const [audioDuration, setAudioDuration] = useState(0);
   const [isCopied, setIsCopied] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
 
-  // Carregar template externo
+  const showToast = (text: string, type: 'success' | 'info' | 'error' = 'info') => {
+    setStatusMessage({ type, text });
+    setTimeout(() => {
+      setStatusMessage((prev) => (prev?.text === text ? null : prev));
+    }, 4000);
+  };
+
+  // Carregar template externo quando selecionado na aba de Modelos Prontos ou Histórico
   useEffect(() => {
     if (activeTemplateToLoad) {
       setTone(activeTemplateToLoad.tone);
@@ -141,13 +139,13 @@ export const LocutionStudio: React.FC<Props> = ({
       setHeadline(activeTemplateToLoad.title);
       setScriptText(replacedScript);
       setGeneratedAudioBase64(null);
-      setStudioStep('script');
+      showToast(`Modelo "${activeTemplateToLoad.title}" carregado!`, 'success');
       if (onClearTemplateToLoad) onClearTemplateToLoad();
     }
   }, [activeTemplateToLoad, storeProfile.name]);
 
   const wordCount = scriptText.trim().split(/\s+/).filter(Boolean).length;
-  const estimatedSeconds = Math.round(wordCount / 2.3);
+  const estimatedSeconds = Math.max(5, Math.round(wordCount / 2.3));
 
   // Manipulação de Produtos
   const handleAddProduct = () => {
@@ -167,25 +165,22 @@ export const LocutionStudio: React.FC<Props> = ({
   };
 
   const handleUpdateProduct = (id: string, field: keyof ProductItem, value: string) => {
-    setProducts(
-      products.map((p) => (p.id === id ? { ...p, [field]: value } : p))
-    );
+    setProducts(products.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
   };
 
-  const handleAddQuickProduct = (item: typeof SUGGESTED_PRODUCTS[0]) => {
+  const handleAddQuickProduct = (item: (typeof SUGGESTED_PRODUCTS)[0]) => {
     setProducts([
       ...products,
       {
         id: Date.now().toString(),
         name: item.name,
-        regularPrice: item.defaultPrice,
         promoPrice: item.defaultPromo,
         unit: item.unit,
       },
     ]);
   };
 
-  // Gerar Roteiro com IA
+  // 1. Gerar Roteiro com IA
   const handleGenerateScript = async () => {
     setIsGeneratingScript(true);
     setGeneratedAudioBase64(null);
@@ -206,34 +201,33 @@ export const LocutionStudio: React.FC<Props> = ({
           tone,
           targetDuration,
           products: products.filter((p) => p.name.trim() !== ''),
-          customOfferText,
-          additionalNotes,
         }),
       });
 
       const data = await response.json();
-      if (data.success) {
+      if (data.success && data.script) {
         setScriptText(data.script);
-        setHeadline(data.headline);
-        if (data.audioTips) setAudioTips(data.audioTips);
-        setStudioStep('script');
+        if (data.headline) setHeadline(data.headline);
+        showToast('Texto promocional criado com sucesso!', 'success');
       } else {
-        alert(data.error || 'Erro ao gerar texto promocional.');
+        showToast(data.error || 'Não foi possível gerar o texto.', 'error');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      alert('Erro de conexão ao gerar roteiro.');
+      showToast('Erro de conexão ao gerar roteiro.', 'error');
     } finally {
       setIsGeneratingScript(false);
     }
   };
 
-  // Refinar Roteiro com IA
+  // 2. Ajustar Roteiro com IA
   const handleRefineScript = async (customText?: string) => {
-    const instruction = customText || refineInstruction;
-    if (!instruction.trim()) return;
+    const instruction = (customText || refineInstruction).trim();
+    if (!instruction || !scriptText.trim()) return;
 
     setIsRefining(true);
+    setRefineSuccessMessage(null);
+
     try {
       const response = await fetch('/api/refine-script', {
         method: 'POST',
@@ -250,40 +244,70 @@ export const LocutionStudio: React.FC<Props> = ({
         setScriptText(data.script);
         setRefineInstruction('');
         setGeneratedAudioBase64(null);
+        setRefineSuccessMessage('Roteiro ajustado com sucesso!');
+        setTimeout(() => setRefineSuccessMessage(null), 3500);
+      } else {
+        showToast(data.error || 'Não foi possível ajustar o roteiro.', 'error');
       }
     } catch (err) {
       console.error(err);
+      showToast('Erro ao ajustar o roteiro.', 'error');
     } finally {
       setIsRefining(false);
     }
   };
 
-  // Sintetizar Áudio com Gemini TTS
-  const handleSynthesizeAudio = async () => {
+  // Helper interno: solicita síntese de voz no servidor e retorna base64 WAV
+  const requestAudioSynthesis = async (): Promise<string | null> => {
+    const response = await fetch('/api/generate-tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: scriptText,
+        voiceName: selectedVoice,
+        tone,
+      }),
+    });
+    const data = await response.json();
+    if (data.success && data.audioBase64) {
+      setGeneratedAudioBase64(data.audioBase64);
+      return data.audioBase64;
+    }
+    return null;
+  };
+
+  // 3. Ouvir Prévia
+  const handleListenPreview = async () => {
     if (!scriptText.trim()) return;
-    setIsSynthesizingAudio(true);
 
-    try {
-      const response = await fetch('/api/generate-tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: scriptText,
-          voiceName: selectedVoice,
-          tone,
-        }),
-      });
-
-      const data = await response.json();
-      if (data.success && data.audioBase64) {
-        setGeneratedAudioBase64(data.audioBase64);
-        playGeneratedAudio(data.audioBase64);
-      } else if (data.fallbackToWebSpeech) {
-        playWebSpeechSynthesis();
-      } else {
-        alert(data.error || 'Erro ao sintetizar áudio.');
+    // Se já estiver tocando, pausa
+    if (isPlayingAudio) {
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
       }
-    } catch (err: any) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      setIsPlayingAudio(false);
+      return;
+    }
+
+    // Se já temos o áudio gerado para este texto/voz, toca imediatamente
+    if (generatedAudioBase64) {
+      await playGeneratedAudio(generatedAudioBase64);
+      return;
+    }
+
+    // Caso contrário, sintetiza com Gemini TTS e toca
+    setIsSynthesizingAudio(true);
+    try {
+      const base64 = await requestAudioSynthesis();
+      if (base64) {
+        await playGeneratedAudio(base64);
+      } else {
+        playWebSpeechSynthesis();
+      }
+    } catch (err) {
       console.error(err);
       playWebSpeechSynthesis();
     } finally {
@@ -291,10 +315,10 @@ export const LocutionStudio: React.FC<Props> = ({
     }
   };
 
-  // Prévia Nativa Web Speech
+  // Prévia de contingência no navegador
   const playWebSpeechSynthesis = () => {
     if (!('speechSynthesis' in window)) {
-      alert('Navegador sem suporte a síntese de voz.');
+      showToast('Seu navegador não suporta síntese de voz.', 'error');
       return;
     }
 
@@ -303,114 +327,103 @@ export const LocutionStudio: React.FC<Props> = ({
       playChimePreview(chimeSound);
     }
 
-    setTimeout(() => {
-      const utterance = new SpeechSynthesisUtterance(scriptText);
-      utterance.lang = 'pt-BR';
-      utterance.rate = tone === 'varejao_energico' || tone === 'oferta_relampago' ? 1.15 : 1.0;
-      utterance.pitch = selectedVoice === 'Kore' || selectedVoice === 'Zephyr' ? 1.1 : 0.95;
+    setTimeout(
+      () => {
+        const utterance = new SpeechSynthesisUtterance(scriptText);
+        utterance.lang = 'pt-BR';
+        utterance.rate = tone === 'varejao_energico' || tone === 'oferta_relampago' ? 1.12 : 1.0;
+        const voices = window.speechSynthesis.getVoices();
+        const ptVoice = voices.find((v) => v.lang.startsWith('pt'));
+        if (ptVoice) utterance.voice = ptVoice;
 
-      const voices = window.speechSynthesis.getVoices();
-      const ptVoice = voices.find((v) => v.lang.startsWith('pt'));
-      if (ptVoice) utterance.voice = ptVoice;
+        utterance.onstart = () => setIsPlayingAudio(true);
+        utterance.onend = () => setIsPlayingAudio(false);
+        utterance.onerror = () => setIsPlayingAudio(false);
 
-      utterance.onstart = () => setIsPlayingAudio(true);
-      utterance.onend = () => setIsPlayingAudio(false);
-      utterance.onerror = () => setIsPlayingAudio(false);
-
-      window.speechSynthesis.speak(utterance);
-    }, chimeSound !== 'none' ? 1200 : 50);
+        window.speechSynthesis.speak(utterance);
+      },
+      chimeSound !== 'none' ? 1100 : 50
+    );
   };
 
-  // Tocar Áudio
-  const playGeneratedAudio = async (base64Override?: string) => {
-    const base64 = base64Override || generatedAudioBase64;
-    if (!base64) return;
-
-    if (isPlayingAudio && audioElementRef.current) {
-      audioElementRef.current.pause();
-      setIsPlayingAudio(false);
-      return;
-    }
-
+  // Toca o buffer mixado (Sino + Voz)
+  const playGeneratedAudio = async (base64: string) => {
     try {
-      if (chimeSound !== 'none') {
-        const mixedBuffer = await createMixedAudioBuffer(base64, chimeSound);
-        const wavBlob = audioBufferToWavBlob(mixedBuffer);
-        const audioUrl = URL.createObjectURL(wavBlob);
+      const mixedBuffer = await createMixedAudioBuffer(base64, chimeSound);
+      const wavBlob = audioBufferToWavBlob(mixedBuffer);
+      const audioUrl = URL.createObjectURL(wavBlob);
 
-        if (audioElementRef.current) {
-          audioElementRef.current.pause();
-        }
-
-        const audio = new Audio(audioUrl);
-        audioElementRef.current = audio;
-        audio.playbackRate = playbackSpeed;
-
-        audio.onloadedmetadata = () => setAudioDuration(audio.duration);
-        audio.ontimeupdate = () => setAudioCurrentTime(audio.currentTime);
-        audio.onended = () => {
-          setIsPlayingAudio(false);
-          setAudioCurrentTime(0);
-        };
-
-        await audio.play();
-        setIsPlayingAudio(true);
-      } else {
-        const audio = new Audio(`data:audio/wav;base64,${base64}`);
-        audioElementRef.current = audio;
-        audio.playbackRate = playbackSpeed;
-
-        audio.onloadedmetadata = () => setAudioDuration(audio.duration);
-        audio.ontimeupdate = () => setAudioCurrentTime(audio.currentTime);
-        audio.onended = () => {
-          setIsPlayingAudio(false);
-          setAudioCurrentTime(0);
-        };
-
-        await audio.play();
-        setIsPlayingAudio(true);
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
       }
+
+      const audio = new Audio(audioUrl);
+      audioElementRef.current = audio;
+
+      audio.onended = () => {
+        setIsPlayingAudio(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onerror = () => {
+        setIsPlayingAudio(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      await audio.play();
+      setIsPlayingAudio(true);
     } catch (e) {
       console.error('Erro na reprodução:', e);
+      playWebSpeechSynthesis();
     }
   };
 
+  // 4. Baixar MP3 (em 1 clique: sintetiza automaticamente se ainda não tiver gerado!)
   const handleDownloadMp3 = async () => {
-    if (!generatedAudioBase64) {
-      alert('Sintetize o áudio primeiro.');
+    if (!scriptText.trim()) {
+      showToast('Escreva ou gere um roteiro antes de baixar o MP3.', 'error');
       return;
     }
+
+    setIsDownloadingMp3(true);
     try {
-      const mixedBuffer = await createMixedAudioBuffer(generatedAudioBase64, chimeSound);
+      let base64 = generatedAudioBase64;
+      if (!base64) {
+        showToast('Gerando voz profissional e preparando seu MP3...', 'info');
+        base64 = await requestAudioSynthesis();
+      }
+
+      if (!base64) {
+        showToast('Serviço de voz ocupado. Tente novamente em alguns segundos.', 'error');
+        return;
+      }
+
+      const mixedBuffer = await createMixedAudioBuffer(base64, chimeSound);
       const mp3Blob = audioBufferToMp3Blob(mixedBuffer);
       const safeHeadline = (headline || 'locucao_varejo')
         .toLowerCase()
-        .replace(/[^a-z0-9]/gi, '_');
-      triggerFileDownload(mp3Blob, `${safeHeadline}_${storeProfile.name || 'loja'}.mp3`);
-    } catch (err) {
-      console.error(err);
-      alert('Erro ao converter para MP3.');
-    }
-  };
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '');
 
-  const handleDownloadWav = async () => {
-    if (!generatedAudioBase64) {
-      alert('Sintetize o áudio primeiro.');
-      return;
-    }
-    try {
-      const mixedBuffer = await createMixedAudioBuffer(generatedAudioBase64, chimeSound);
-      const wavBlob = audioBufferToWavBlob(mixedBuffer);
-      const safeHeadline = (headline || 'locucao_varejo')
+      const safeStore = (storeProfile.name || 'loja')
         .toLowerCase()
-        .replace(/[^a-z0-9]/gi, '_');
-      triggerFileDownload(wavBlob, `${safeHeadline}_${storeProfile.name || 'loja'}.wav`);
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '');
+
+      triggerFileDownload(mp3Blob, `${safeHeadline || 'locucao'}_${safeStore || 'mercado'}.mp3`);
+      showToast('Download do MP3 concluído!', 'success');
     } catch (err) {
-      console.error(err);
-      alert('Erro ao exportar WAV.');
+      console.error('Erro ao exportar MP3:', err);
+      showToast('Erro ao gerar o arquivo MP3.', 'error');
+    } finally {
+      setIsDownloadingMp3(false);
     }
   };
 
+  // Salvar no Histórico
   const handleSaveToHistory = () => {
     const activeVoiceObj = GEMINI_VOICES.find((v) => v.voiceName === selectedVoice);
     const newLocution: SavedLocution = {
@@ -432,6 +445,7 @@ export const LocutionStudio: React.FC<Props> = ({
 
     onSaveLocution(newLocution);
     setIsSaved(true);
+    showToast('Locução salva no histórico!', 'success');
     setTimeout(() => setIsSaved(false), 3000);
   };
 
@@ -442,236 +456,179 @@ export const LocutionStudio: React.FC<Props> = ({
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      {/* ============================================================ */}
-      {/* NAVEGAÇÃO DE ETAPAS ELEGANTE E LEVE (SEM CAIXAS PESADAS)     */}
-      {/* ============================================================ */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 pb-3">
-        <div className="flex items-center gap-1 sm:gap-2">
-          {[
-            { id: 'offers', step: '1', label: 'Ofertas & Perfil' },
-            { id: 'script', step: '2', label: 'Roteiro & Ajustes' },
-            { id: 'audio', step: '3', label: 'Gravação & Áudio' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setStudioStep(tab.id as any)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                studioStep === tab.id
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
-            >
-              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                studioStep === tab.id
-                  ? 'bg-white/20 text-white dark:bg-black/10 dark:text-slate-900'
-                  : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-              }`}>
-                {tab.step}
-              </span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Loja ativa em texto sutil */}
-        <button
-          onClick={onOpenStoreModal}
-          className="text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white flex items-center gap-1.5 transition"
+    <div className="space-y-5">
+      {/* Notificação Flutuante Sutil */}
+      {statusMessage && (
+        <div
+          className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-between border transition ${
+            statusMessage.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/60 dark:border-emerald-800 dark:text-emerald-200'
+              : statusMessage.type === 'error'
+              ? 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950/60 dark:border-red-800 dark:text-red-200'
+              : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/60 dark:border-amber-800 dark:text-amber-200'
+          }`}
         >
-          <Store className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline font-medium">{storeProfile.name || 'Sua Loja'}</span>
-          <span className="text-[11px] text-amber-600 dark:text-amber-400 underline">Editar</span>
-        </button>
-      </div>
+          <span>{statusMessage.text}</span>
+          <button
+            type="button"
+            onClick={() => setStatusMessage(null)}
+            className="text-xs opacity-60 hover:opacity-100 ml-4"
+          >
+            Fechar
+          </button>
+        </div>
+      )}
 
-      {/* ============================================================ */}
-      {/* ETAPA 1: OFERTAS & PERFIL (LEVE, AIRY, SEM CARTÕES DENTRO)   */}
-      {/* ============================================================ */}
-      {studioStep === 'offers' && (
-        <div className="space-y-6">
-          {/* Tom da Locução em Pills Elegantes */}
-          <div className="space-y-2">
+      {/* ================================================================= */}
+      {/* LAYOUT EM 2 COLUNAS AMIGÁVEL E DIRETO AO PONTO                    */}
+      {/* Coluna 1: Loja + Ofertas | Coluna 2: Roteiro + Voz + Baixar MP3   */}
+      {/* ================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* COLUNA ESQUERDA (5 cols): DADOS DO ANÚNCIO E PRODUTOS */}
+        <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-5 space-y-5 shadow-xs">
+          {/* 1. Nome do Estabelecimento */}
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Perfil de Voz & Clima do Anúncio
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                <Store className="w-3.5 h-3.5 text-amber-500" />
+                Nome do Mercado ou Açougue
               </label>
-              <span className="text-[11px] text-slate-400">
-                Selecione o estilo de comunicação da loja
-              </span>
+              <button
+                type="button"
+                onClick={onOpenStoreModal}
+                className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+              >
+                <Settings2 className="w-3 h-3" /> Mais detalhes
+              </button>
             </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {[
-                { id: 'varejao_energico', label: 'Varejão Enérgico', hint: 'Popular & Alta Energia', emoji: '📢' },
-                { id: 'acougue_especial', label: 'Açougue & Churrasco', hint: 'Carnes Nobres & Maciez', emoji: '🥩' },
-                { id: 'amigavel_acolhedor', label: 'Amigável & Familiar', hint: 'Vizinhança & Lar', emoji: '🌿' },
-                { id: 'festa_aniversario', label: 'Festa & Aniversário', hint: 'Sorteios & Prêmios', emoji: '🎉' },
-                { id: 'oferta_relampago', label: 'Oferta Relâmpago', hint: 'Urgente nos 30 Minutos', emoji: '⚡' },
-                { id: 'final_de_semana', label: 'Sextou Fim de Semana', hint: 'Churrasco & Bebida', emoji: '🏖️' },
-              ].map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTone(t.id as LocutionTone)}
-                  className={`flex items-center gap-2.5 p-2.5 rounded-xl text-left border transition text-xs ${
-                    tone === t.id
-                      ? 'bg-amber-500/10 border-amber-500/80 text-amber-900 dark:text-amber-300 font-semibold'
-                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
-                  }`}
-                >
-                  <span className="text-base">{t.emoji}</span>
-                  <div className="min-w-0 flex-1 truncate">
-                    <div className="truncate">{t.label}</div>
-                    <div className="text-[10px] text-slate-400 font-normal truncate">{t.hint}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <input
+              type="text"
+              value={storeProfile.name}
+              onChange={(e) =>
+                onUpdateStoreProfile({ ...storeProfile, name: e.target.value })
+              }
+              placeholder="Ex: Açougue Boi de Ouro / Supermercado Família"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
+            />
           </div>
 
-          {/* Duração Desejada em Segmento Minimalista */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-              Duração da Fala
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 'curta', label: 'Curta (15s a 20s)', sub: '35–50 palavras · Flash' },
-                { id: 'media', label: 'Média (30s a 40s)', sub: '75–95 palavras · Padrão' },
-                { id: 'longa', label: 'Longa (60s a 90s)', sub: '145–195 palavras · Encarte' },
-              ].map((d) => {
-                const isSelected =
-                  targetDuration === d.id ||
-                  (d.id === 'curta' && targetDuration === '15s') ||
-                  (d.id === 'media' && (targetDuration === '30s' || targetDuration === '45s')) ||
-                  (d.id === 'longa' && targetDuration === '60s');
-
-                return (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => setTargetDuration(d.id as TargetDuration)}
-                    className={`py-2 px-3 rounded-xl text-center border transition ${
-                      isSelected
-                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent font-semibold shadow-xs'
-                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                    }`}
-                  >
-                    <div className="text-xs">{d.label}</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">{d.sub}</div>
-                  </button>
-                );
-              })}
+          {/* 2. Estilo e Duração */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block mb-1.5">
+                Estilo da Locução
+              </label>
+              <select
+                value={tone}
+                onChange={(e) => setTone(e.target.value as LocutionTone)}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-100 focus:outline-hidden focus:border-amber-500"
+              >
+                <option value="varejao_energico">📢 Varejão Animado</option>
+                <option value="acougue_especial">🥩 Açougue & Churrasco</option>
+                <option value="amigavel_acolhedor">🌿 Amigável & Familiar</option>
+                <option value="festa_aniversario">🎉 Festa & Aniversário</option>
+                <option value="oferta_relampago">⚡ Oferta Relâmpago</option>
+                <option value="final_de_semana">🏖️ Especial Fim de Semana</option>
+              </select>
             </div>
-          </div>
 
-          {/* Lista de Produtos em Linhas Limpas (Sem cartões pesados aninhados) */}
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Ofertas em Destaque
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  Preencha os produtos e preços que o locutor vai anunciar
-                </p>
+            <div>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block mb-1.5">
+                Duração do Áudio
+              </label>
+              <div className="grid grid-cols-3 gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                {[
+                  { id: 'curta', label: 'Curta', sub: '15s' },
+                  { id: 'media', label: 'Média', sub: '30s' },
+                  { id: 'longa', label: 'Longa', sub: '60s' },
+                ].map((d) => {
+                  const active =
+                    targetDuration === d.id ||
+                    (d.id === 'curta' && targetDuration === '15s') ||
+                    (d.id === 'media' && (targetDuration === '30s' || targetDuration === '45s')) ||
+                    (d.id === 'longa' && targetDuration === '60s');
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setTargetDuration(d.id as TargetDuration)}
+                      className={`py-1.5 rounded-lg text-xs font-semibold transition ${
+                        active
+                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      }`}
+                    >
+                      {d.label} <span className="text-[10px] opacity-70">({d.sub})</span>
+                    </button>
+                  );
+                })}
               </div>
+            </div>
+          </div>
 
+          {/* 3. Produtos e Ofertas Simplificados */}
+          <div className="space-y-2.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                Produtos em Oferta
+              </label>
               <button
                 type="button"
                 onClick={handleAddProduct}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 transition"
+                className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
               >
-                <Plus className="w-3.5 h-3.5" /> Adicionar Item
+                <Plus className="w-3.5 h-3.5" /> Adicionar produto
               </button>
             </div>
 
-            {/* Chips rápidos de sugestão discretos */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-              <span className="text-[11px] text-slate-400 shrink-0">Inserir rápido:</span>
-              {SUGGESTED_PRODUCTS.slice(0, 8).map((sug, i) => (
+            {/* Sugestões rápidas em 1 clique */}
+            <div className="flex flex-wrap gap-1.5">
+              {SUGGESTED_PRODUCTS.slice(0, 5).map((sug, i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={() => handleAddQuickProduct(sug)}
-                  className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] shrink-0 transition"
+                  className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] transition"
                 >
                   + {sug.name}
                 </button>
               ))}
             </div>
 
-            {/* Tabela / Linhas limpas de produtos */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl divide-y divide-slate-100 dark:divide-slate-800">
-              {products.map((p, idx) => (
-                <div
-                  key={p.id}
-                  className="p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 text-xs"
-                >
-                  <span className="text-[11px] font-bold text-slate-400 shrink-0 sm:w-6">
-                    #{idx + 1}
-                  </span>
-
-                  {/* Nome */}
-                  <div className="flex-1 min-w-0">
-                    <input
-                      type="text"
-                      placeholder="Ex: Picanha Bovina Maturada..."
-                      value={p.name}
-                      onChange={(e) => handleUpdateProduct(p.id, 'name', e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
-                    />
-                  </div>
-
-                  {/* De (Normal) */}
-                  <div className="w-full sm:w-24">
-                    <input
-                      type="text"
-                      placeholder="De R$ 0,00"
-                      value={p.regularPrice || ''}
-                      onChange={(e) => handleUpdateProduct(p.id, 'regularPrice', e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-500 dark:text-slate-400 placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
-                    />
-                  </div>
-
-                  {/* Por (Oferta) */}
-                  <div className="w-full sm:w-28">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Por R$ 0,00*"
-                      value={p.promoPrice}
-                      onChange={(e) => handleUpdateProduct(p.id, 'promoPrice', e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-amber-500/60 rounded-lg px-2.5 py-1.5 font-bold text-amber-700 dark:text-amber-400 placeholder-slate-400 focus:outline-hidden"
-                    />
-                  </div>
-
-                  {/* Unidade */}
-                  <div className="w-full sm:w-28">
-                    <select
-                      value={p.unit}
-                      onChange={(e) => handleUpdateProduct(p.id, 'unit', e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1.5 text-slate-700 dark:text-slate-300 focus:outline-hidden"
-                    >
-                      <option value="kg">o Quilo (kg)</option>
-                      <option value="100g">100 gramas</option>
-                      <option value="un">a Unidade</option>
-                      <option value="bandeja">a Bandeja</option>
-                      <option value="pacote">o Pacote</option>
-                      <option value="peça">a Peça</option>
-                      <option value="litro">o Litro</option>
-                      <option value="fardo">o Fardo/Pack</option>
-                    </select>
-                  </div>
-
-                  {/* Excluir */}
+            {/* Linhas simples: Produto | Preço | Unidade */}
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {products.map((p) => (
+                <div key={p.id} className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    placeholder="Produto (ex: Picanha)"
+                    value={p.name}
+                    onChange={(e) => handleUpdateProduct(p.id, 'name', e.target.value)}
+                    className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="R$ 49,90"
+                    value={p.promoPrice}
+                    onChange={(e) => handleUpdateProduct(p.id, 'promoPrice', e.target.value)}
+                    className="w-24 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-400 placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
+                  />
+                  <select
+                    value={p.unit}
+                    onChange={(e) => handleUpdateProduct(p.id, 'unit', e.target.value)}
+                    className="w-20 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-1.5 py-1.5 text-xs text-slate-600 dark:text-slate-300 focus:outline-hidden"
+                  >
+                    <option value="kg">kg</option>
+                    <option value="un">unid.</option>
+                    <option value="pacote">pct</option>
+                    <option value="bandeja">band.</option>
+                    <option value="litro">litro</option>
+                  </select>
                   <button
                     type="button"
                     onClick={() => handleRemoveProduct(p.id)}
-                    className="text-slate-400 hover:text-red-500 p-1.5 transition self-end sm:self-center"
-                    title="Excluir item"
+                    className="p-1.5 text-slate-400 hover:text-red-500 transition"
+                    title="Remover item"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -680,425 +637,259 @@ export const LocutionStudio: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Botão de Ação Primária Limpo */}
-          <div className="pt-2 flex justify-end">
-            <button
-              type="button"
-              onClick={handleGenerateScript}
-              disabled={isGeneratingScript}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 disabled:opacity-50 shadow-xs"
-            >
-              {isGeneratingScript ? (
-                <>
-                  <Sparkles className="w-4 h-4 animate-spin" />
-                  <span>Escrevendo Roteiro com IA...</span>
-                </>
-              ) : (
-                <>
-                  <Wand2 className="w-4 h-4" />
-                  <span>Gerar Roteiro Promocional →</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================ */}
-      {/* ETAPA 2: ROTEIRO & AJUSTES (ESTILO EDITORIAL LIMPO)           */}
-      {/* ============================================================ */}
-      {studioStep === 'script' && (
-        <div className="space-y-5">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
-            {/* Título & Teleprompter Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
-              <input
-                type="text"
-                value={headline}
-                onChange={(e) => setHeadline(e.target.value)}
-                className="text-base sm:text-lg font-bold text-slate-900 dark:text-white bg-transparent border-none focus:outline-hidden p-0"
-                placeholder="Título do anúncio..."
-              />
-
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <Clock className="w-3.5 h-3.5 text-slate-400" />
-                <span>{wordCount} palavras</span>
-                <span>·</span>
-                <span>~{estimatedSeconds}s de locução</span>
-              </div>
-            </div>
-
-            {/* Caixa de Texto do Roteiro */}
-            <div>
-              <textarea
-                rows={8}
-                value={scriptText}
-                onChange={(e) => {
-                  setScriptText(e.target.value);
-                  setGeneratedAudioBase64(null);
-                }}
-                className="w-full bg-slate-50/70 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-sm sm:text-base text-slate-800 dark:text-slate-100 leading-relaxed focus:outline-hidden focus:border-amber-500 font-sans resize-y"
-                placeholder="O texto do locutor aparecerá aqui..."
-              />
-            </div>
-
-            {/* Dica de Locução Sutil */}
-            {audioTips && (
-              <div className="text-xs text-amber-800 dark:text-amber-300/90 flex items-center gap-2 pt-1">
-                <Bell className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-                <span>
-                  <strong>Dica de Locutor:</strong> {audioTips}
-                </span>
-              </div>
+          {/* Botão Gerar Texto */}
+          <button
+            type="button"
+            onClick={handleGenerateScript}
+            disabled={isGeneratingScript}
+            className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+          >
+            {isGeneratingScript ? (
+              <>
+                <Sparkles className="w-4 h-4 animate-spin" />
+                <span>Criando Texto Promocional...</span>
+              </>
+            ) : (
+              <>
+                <Wand2 className="w-4 h-4" />
+                <span>Criar Texto com IA</span>
+              </>
             )}
+          </button>
+        </div>
 
-            {/* Refinamento com IA */}
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>Ajustar Roteiro com IA:</span>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  '⚡ Encurtar fala',
-                  '🔥 Mais energia de varejão',
-                  '🥩 Enfatizar carne e brasa',
-                  '💳 Mencionar Pix e cartões',
-                  '🌿 Tornar mais acolhedor',
-                ].map((sug, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleRefineScript(sug)}
-                    disabled={isRefining}
-                    className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition disabled:opacity-50"
-                  >
-                    {sug}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="text"
-                  placeholder="Instrução personalizada (ex: adicione que abrimos domingo até às 13h)..."
-                  value={refineInstruction}
-                  onChange={(e) => setRefineInstruction(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleRefineScript();
-                  }}
-                  className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleRefineScript()}
-                  disabled={isRefining || !refineInstruction.trim()}
-                  className="px-3.5 py-1.5 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-semibold transition disabled:opacity-40"
-                >
-                  {isRefining ? 'Ajustando...' : 'Aplicar'}
-                </button>
-              </div>
-            </div>
-
-            {/* Navegação */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setStudioStep('offers')}
-                className="px-3 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-1"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" /> Voltar para Ofertas
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setStudioStep('audio')}
-                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm transition flex items-center gap-1.5 shadow-xs"
-              >
-                <span>Avançar para Gravação & Áudio</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+        {/* COLUNA DIREITA (7 cols): ROTEIRO + AJUSTE IA + VOZ E DOWNLOAD MP3 */}
+        <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
+          {/* Cabeçalho do Roteiro */}
+          <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <input
+              type="text"
+              value={headline}
+              onChange={(e) => setHeadline(e.target.value)}
+              className="text-base font-bold text-slate-900 dark:text-white bg-transparent border-none focus:outline-hidden p-0 flex-1"
+              placeholder="Título da locução..."
+            />
+            <div className="flex items-center gap-1.5 text-xs text-slate-400 shrink-0">
+              <Clock className="w-3.5 h-3.5" />
+              <span>{wordCount} palavras (~{estimatedSeconds}s)</span>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* ============================================================ */}
-      {/* ETAPA 3: GRAVAÇÃO, VOZ & DOWNLOAD DO MP3                     */}
-      {/* ============================================================ */}
-      {studioStep === 'audio' && (
-        <div className="space-y-5">
-          {/* Seleção de Vozes & Vinheta */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                Voz do Locutor
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Selecione o locutor ideal para o estilo da sua loja
-              </p>
+          {/* Editor do Texto da Locução */}
+          <div>
+            <textarea
+              rows={6}
+              value={scriptText}
+              onChange={(e) => {
+                setScriptText(e.target.value);
+                setGeneratedAudioBase64(null);
+              }}
+              className="w-full bg-slate-50/80 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 text-sm sm:text-base text-slate-800 dark:text-slate-100 leading-relaxed focus:outline-hidden focus:border-amber-500 resize-y"
+              placeholder="O texto da locução aparecerá aqui. Você também pode digitar ou editar livremente..."
+            />
+          </div>
+
+          {/* Ajustar Roteiro com IA (Simples e Funcional) */}
+          <div className="bg-slate-50 dark:bg-slate-950/70 border border-slate-200/70 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                Ajustar Roteiro com IA
+              </span>
+              {refineSuccessMessage && (
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> {refineSuccessMessage}
+                </span>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-              {GEMINI_VOICES.map((v) => (
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: '⚡ Deixar mais curto', prompt: 'Deixe o texto mais curto e direto' },
+                { label: '🔥 Mais energia de varejão', prompt: 'Coloque muito mais energia de locutor de varejão' },
+                { label: '🥩 Destacar carnes e churrasco', prompt: 'Destaque a maciez e frescor das carnes para churrasco' },
+                { label: '💳 Incluir Pix e Cartão', prompt: 'Inclua no final que aceitamos Pix e cartões' },
+              ].map((btn, idx) => (
                 <button
-                  key={v.voiceName}
+                  key={idx}
                   type="button"
-                  onClick={() => {
-                    setSelectedVoice(v.voiceName);
-                    setGeneratedAudioBase64(null);
-                  }}
-                  className={`p-3 rounded-xl text-left border transition ${
-                    selectedVoice === v.voiceName
-                      ? 'bg-amber-500/10 border-amber-500 text-slate-900 dark:text-white font-semibold'
-                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
-                  }`}
+                  onClick={() => handleRefineScript(btn.prompt)}
+                  disabled={isRefining}
+                  className="text-xs px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-amber-400 text-slate-700 dark:text-slate-200 transition disabled:opacity-50"
                 >
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold">{v.name}</span>
-                    <span className="text-[10px] text-slate-400">
-                      {v.gender === 'masculino' ? '♂ Masc' : '♀ Fem'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-1">
-                    {v.description}
-                  </p>
+                  {btn.label}
                 </button>
               ))}
             </div>
 
-            {/* Vinheta de Sino */}
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Bell className="w-3.5 h-3.5 text-amber-500" />
-                  Sino de Abertura (Vinheta tocada antes do locutor falar):
-                </span>
-                <button
-                  type="button"
-                  onClick={() => playChimePreview(chimeSound)}
-                  className="text-xs text-amber-600 dark:text-amber-400 hover:underline"
-                >
-                  Ouvir Sino
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                {[
-                  { id: 'supermarket_bell', label: '🔔 Ding-Dong Clássico' },
-                  { id: 'chime_tri', label: '✨ Atenção Tri-Tom' },
-                  { id: 'alert_beep', label: '⚡ Alerta Urgente' },
-                  { id: 'none', label: 'Sem Vinheta' },
-                ].map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setChimeSound(c.id as ChimeSoundType)}
-                    className={`py-1.5 px-2 rounded-lg text-center border transition ${
-                      chimeSound === c.id
-                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent font-semibold shadow-xs'
-                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Ou digite o que mudar (ex: fale que abrimos domingo até 13h)..."
+                value={refineInstruction}
+                onChange={(e) => setRefineInstruction(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRefineScript();
+                }}
+                className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
+              />
+              <button
+                type="button"
+                onClick={() => handleRefineScript()}
+                disabled={isRefining || !refineInstruction.trim()}
+                className="px-3.5 py-1.5 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold transition disabled:opacity-40 shrink-0"
+              >
+                {isRefining ? 'Ajustando...' : 'Aplicar'}
+              </button>
             </div>
           </div>
 
-          {/* Console de Áudio e Download */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Gravar Locução & Gerar MP3
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Ouça a prévia mixada com a vinheta e baixe o arquivo final
-                </p>
-              </div>
-
-              {generatedAudioBase64 && (
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Áudio Pronto
-                </span>
-              )}
+          {/* Seleção de Voz & Sino */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block mb-1.5">
+                Voz do Locutor (Masculina / Feminina)
+              </label>
+              <select
+                value={selectedVoice}
+                onChange={(e) => {
+                  setSelectedVoice(e.target.value);
+                  setGeneratedAudioBase64(null);
+                }}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-100 focus:outline-hidden focus:border-amber-500"
+              >
+                {GEMINI_VOICES.map((v) => (
+                  <option key={v.voiceName} value={v.voiceName}>
+                    {v.gender === 'masculino' ? '♂ ' : '♀ '}
+                    {v.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Ações de Síntese */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1">
+                  <Bell className="w-3.5 h-3.5 text-amber-500" />
+                  Sino de Abertura
+                </label>
+                {chimeSound !== 'none' && (
+                  <button
+                    type="button"
+                    onClick={() => playChimePreview(chimeSound)}
+                    className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline"
+                  >
+                    Testar som
+                  </button>
+                )}
+              </div>
+              <select
+                value={chimeSound}
+                onChange={(e) => setChimeSound(e.target.value as ChimeSoundType)}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-100 focus:outline-hidden focus:border-amber-500"
+              >
+                <option value="supermarket_bell">🔔 Ding-Dong de Supermercado</option>
+                <option value="chime_tri">✨ Sino Tri-Tom Comercial</option>
+                <option value="alert_beep">⚡ Alerta Oferta Relâmpago</option>
+                <option value="party_fanfare">🎉 Vinheta de Festa</option>
+                <option value="none">🔇 Sem sino de abertura</option>
+              </select>
+            </div>
+          </div>
+
+          {/* BOTÕES PRINCIPAIS DE ÁUDIO: OUVIR PRÉVIA E BAIXAR MP3 */}
+          <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={handleListenPreview}
+              disabled={isSynthesizingAudio || isDownloadingMp3}
+              className="py-3.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold text-sm flex items-center justify-center gap-2 transition shadow-xs disabled:opacity-50"
+            >
+              {isSynthesizingAudio ? (
+                <>
+                  <Sparkles className="w-4 h-4 animate-spin" />
+                  <span>Gerando Voz...</span>
+                </>
+              ) : isPlayingAudio ? (
+                <>
+                  <Pause className="w-4 h-4 fill-current" />
+                  <span>Pausar Prévia</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>Ouvir Prévia da Locução</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadMp3}
+              disabled={isDownloadingMp3 || isSynthesizingAudio}
+              className="py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition shadow-xs disabled:opacity-50"
+            >
+              {isDownloadingMp3 ? (
+                <>
+                  <Sparkles className="w-4 h-4 animate-spin" />
+                  <span>Preparando MP3...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  <span>Baixar Locução em MP3</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Ações Secundárias (Salvar no Histórico & Copiar Texto) */}
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={playWebSpeechSynthesis}
+              className="text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex items-center gap-1 transition"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>Teste rápido (voz local)</span>
+            </button>
+
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleSynthesizeAudio}
-                disabled={isSynthesizingAudio}
-                className="py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-xs disabled:opacity-50"
+                onClick={handleCopyText}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 transition"
               >
-                {isSynthesizingAudio ? (
+                {isCopied ? (
                   <>
-                    <Sparkles className="w-4 h-4 animate-spin" />
-                    <span>Sintetizando Voz Comercial...</span>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" /> Copiado
                   </>
                 ) : (
                   <>
-                    <Mic className="w-4 h-4" />
-                    <span>Sintetizar Voz Comercial (Gemini)</span>
+                    <Copy className="w-3.5 h-3.5" /> Copiar Texto
                   </>
                 )}
               </button>
 
               <button
                 type="button"
-                onClick={playWebSpeechSynthesis}
-                className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition"
+                onClick={handleSaveToHistory}
+                className="px-3.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition"
               >
-                <Volume2 className="w-4 h-4" />
-                <span>Ouvir Prévia no Navegador</span>
+                {isSaved ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" /> Salvo!
+                  </>
+                ) : (
+                  <>
+                    <Star className="w-3.5 h-3.5" /> Salvar no Histórico
+                  </>
+                )}
               </button>
             </div>
-
-            {/* Player de Áudio Moderno */}
-            {generatedAudioBase64 && (
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => playGeneratedAudio()}
-                      className="w-9 h-9 rounded-full bg-slate-900 text-white dark:bg-white dark:text-slate-900 flex items-center justify-center shadow-xs transition"
-                    >
-                      {isPlayingAudio ? (
-                        <Pause className="w-4 h-4 fill-current" />
-                      ) : (
-                        <Play className="w-4 h-4 fill-current ml-0.5" />
-                      )}
-                    </button>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white">
-                        Locução Comercial Mixada
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Sino + Voz {selectedVoice}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Controle de Velocidade */}
-                  <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-800 text-xs">
-                    <span className="text-[10px] text-slate-400 px-1">Velocidade:</span>
-                    {[1.0, 1.1, 1.2].map((spd) => (
-                      <button
-                        key={spd}
-                        type="button"
-                        onClick={() => {
-                          setPlaybackSpeed(spd);
-                          if (audioElementRef.current) {
-                            audioElementRef.current.playbackRate = spd;
-                          }
-                        }}
-                        className={`px-1.5 py-0.5 rounded-sm font-semibold transition ${
-                          playbackSpeed === spd
-                            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                            : 'text-slate-500 hover:text-slate-900'
-                        }`}
-                      >
-                        {spd}x
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Linha de Progresso */}
-                {audioDuration > 0 && (
-                  <div className="space-y-1">
-                    <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1 overflow-hidden">
-                      <div
-                        className="bg-amber-500 h-full transition-all duration-100"
-                        style={{
-                          width: `${(audioCurrentTime / audioDuration) * 100}%`,
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-[10px] font-mono text-slate-400">
-                      <span>{Math.floor(audioCurrentTime)}s</span>
-                      <span>{Math.floor(audioDuration)}s</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Ações Finais: Download MP3 / WAV e Salvar */}
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleDownloadMp3}
-                  disabled={!generatedAudioBase64}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-xs"
-                >
-                  <Download className="w-3.5 h-3.5" /> Baixar MP3
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleDownloadWav}
-                  disabled={!generatedAudioBase64}
-                  className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 text-xs font-semibold flex items-center gap-1.5 transition"
-                >
-                  <FileAudio className="w-3.5 h-3.5" /> WAV
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleCopyText}
-                  className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 transition"
-                >
-                  {isCopied ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-600" /> Copiado!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" /> Copiar Texto
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSaveToHistory}
-                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs flex items-center gap-1.5 transition shadow-xs"
-                >
-                  {isSaved ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" /> Salvo!
-                    </>
-                  ) : (
-                    <>
-                      <Star className="w-3.5 h-3.5" /> Salvar no Histórico
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Navegação de Volta */}
-          <div className="flex justify-start">
-            <button
-              type="button"
-              onClick={() => setStudioStep('script')}
-              className="px-3 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-1"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" /> Voltar para o Roteiro
-            </button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
