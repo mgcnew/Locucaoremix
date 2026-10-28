@@ -129,6 +129,40 @@ export function generateChimeBuffer(
     return buffer;
   }
 
+  if (type === 'radio_jingle') {
+    const duration = 1.55;
+    const buffer = ctx.createBuffer(1, Math.floor(sampleRate * duration), sampleRate);
+    const data = buffer.getChannelData(0);
+
+    // Acorde vibrante estilo vinheta de Rádio FM comercial
+    const notes = [
+      { t: 0.0, f1: 587.33, f2: 880.0 },   // D5 + A5
+      { t: 0.16, f1: 659.25, f2: 987.77 }, // E5 + B5
+      { t: 0.32, f1: 783.99, f2: 1174.66 },// G5 + D6
+      { t: 0.52, f1: 880.0, f2: 1318.51 }, // A5 + E6 (sustentação de emissora)
+    ];
+
+    for (let i = 0; i < data.length; i++) {
+      const t = i / sampleRate;
+      let sample = 0;
+      notes.forEach((n, idx) => {
+        if (t >= n.t) {
+          const dt = t - n.t;
+          const decayRate = idx === notes.length - 1 ? 2.6 : 5.5;
+          const env = Math.min(1, dt * 45) * Math.exp(-dt * decayRate);
+          sample +=
+            0.22 *
+            (Math.sin(2 * Math.PI * n.f1 * dt) +
+              0.7 * Math.sin(2 * Math.PI * n.f2 * dt) +
+              0.25 * Math.sin(2 * Math.PI * (n.f1 * 0.5) * dt)) *
+            env;
+        }
+      });
+      data[i] = Math.max(-0.95, Math.min(0.95, sample));
+    }
+    return buffer;
+  }
+
   return null;
 }
 

@@ -7,6 +7,8 @@ import {
   ChimeSoundType,
   SavedLocution,
   SeasonalTemplate,
+  ScriptMode,
+  RadioFormat,
 } from '../types';
 import { GEMINI_VOICES } from '../data/voices';
 import { SUGGESTED_PRODUCTS } from '../data/popularProducts';
@@ -18,9 +20,11 @@ import {
   Check,
   Copy,
   Download,
+  Mic,
   Pause,
   Play,
   Plus,
+  Radio,
   RefreshCw,
   Settings2,
   Share2,
@@ -28,6 +32,7 @@ import {
   Star,
   Trash2,
   TriangleAlert,
+  Users,
   Volume2,
   Wand2,
 } from 'lucide-react';
@@ -66,6 +71,32 @@ const TONES: { id: LocutionTone; label: string; hint: string }[] = [
   { id: 'fechamento_loja', label: 'Fechamento da loja', hint: 'Última chamada do dia' },
 ];
 
+const SCRIPT_MODES: { id: ScriptMode; label: string; hint: string }[] = [
+  {
+    id: 'comercial',
+    label: 'Comercial tradicional',
+    hint: 'Chamada direta das ofertas para o som da loja',
+  },
+  {
+    id: 'radio',
+    label: 'Modo Rádio Interna',
+    hint: 'Interrompe a programação e volta para a rádio no final',
+  },
+];
+
+const RADIO_FORMATS: { id: RadioFormat; label: string; hint: string }[] = [
+  {
+    id: 'flash_interrupcao',
+    label: 'Interrupção da programação',
+    hint: '“E paramos a nossa programação…” com volta musical no final',
+  },
+  {
+    id: 'dupla_locutores',
+    label: 'Dupla de locutores',
+    hint: 'Locutor e locutora conversando estilo programa de rádio ao vivo',
+  },
+];
+
 const DURATIONS = [
   { id: 'curta', label: 'Curta', seconds: 15 },
   { id: 'media', label: 'Média', seconds: 30 },
@@ -77,6 +108,7 @@ const normalizeDuration = (d: TargetDuration): 'curta' | 'media' | 'longa' =>
 
 const CHIMES: { id: ChimeSoundType; label: string }[] = [
   { id: 'supermarket_bell', label: 'Ding-dong de supermercado' },
+  { id: 'radio_jingle', label: 'Vinheta Rádio FM (Sintonia)' },
   { id: 'chime_tri', label: 'Sino tri-tom' },
   { id: 'alert_beep', label: 'Alerta de oferta relâmpago' },
   { id: 'party_fanfare', label: 'Vinheta de festa' },
@@ -88,6 +120,10 @@ const QUICK_TWEAKS = [
   { label: 'Mais energia', prompt: 'Coloque muito mais energia de locutor de varejão' },
   { label: 'Destacar as carnes', prompt: 'Destaque a maciez e frescor das carnes para churrasco' },
   { label: 'Incluir Pix e cartão', prompt: 'Inclua no final que aceitamos Pix e cartões' },
+  {
+    label: 'Estilo Rádio FM',
+    prompt: 'Transforme em estilo locutor de rádio interrompendo a programação e voltando para a rádio no final',
+  },
 ];
 
 const UNITS = [
@@ -101,13 +137,13 @@ const UNITS = [
 const voiceShortName = (name: string) => name.split(' (')[0];
 const voiceHint = (name: string) => name.match(/\((.*)\)/)?.[1] ?? '';
 
-const Card: React.FC<{ title?: string; description?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }> = ({
-  title,
-  description,
-  action,
-  children,
-  className = '',
-}) => (
+const Card: React.FC<{
+  title?: string;
+  description?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}> = ({ title, description, action, children, className = '' }) => (
   <section className={`bg-surface border border-line rounded-xl p-5 sm:p-6 ${className}`}>
     {(title || action) && (
       <div className="flex items-start justify-between gap-3 mb-4">
@@ -138,6 +174,10 @@ export const LocutionStudio: React.FC<Props> = ({
 
   const [tone, setTone] = useState<LocutionTone>('varejao_energico');
   const [targetDuration, setTargetDuration] = useState<TargetDuration>('media');
+  const [scriptMode, setScriptMode] = useState<ScriptMode>('comercial');
+  const [radioFormat, setRadioFormat] = useState<RadioFormat>('flash_interrupcao');
+  const [radioStationName, setRadioStationName] = useState('');
+
   const [products, setProducts] = useState<ProductItem[]>([
     { id: '1', name: 'Picanha Bovina Maturada', promoPrice: '49,90', unit: 'kg' },
     { id: '2', name: 'Linguiça Toscana Especial', promoPrice: '18,90', unit: 'kg' },
@@ -176,18 +216,31 @@ export const LocutionStudio: React.FC<Props> = ({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstStepRender = useRef(true);
 
+  const effectiveRadioName = useMemo(() => {
+    const custom = radioStationName.trim();
+    if (custom) return custom;
+    const baseStore = (storeProfile.name || '').trim() || 'Nossa Loja';
+    if (/^r[áa]dio\b/i.test(baseStore)) return baseStore;
+    return `Rádio ${baseStore}`;
+  }, [radioStationName, storeProfile.name]);
+
   const isRefining = refiningPrompt !== null;
   const scriptBusy = isGeneratingScript || isRefining;
   const isPlaying = playback !== 'idle';
   const namedProducts = products.filter((p) => p.name.trim() !== '');
-  const wordCount = scriptText.trim().split(/\s+/).filter(Boolean).length;
+  const wordCount = scriptText
+    .replace(/^(locutora|locutor)\s*:\s*/gim, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
   const estimatedSeconds = Math.max(3, Math.round(wordCount / 2.3));
   const durationKey = normalizeDuration(targetDuration);
   const targetSeconds = DURATIONS.find((d) => d.id === durationKey)!.seconds;
   const budgetRatio = estimatedSeconds / targetSeconds;
   const budgetState = budgetRatio > 1.2 ? 'over' : budgetRatio < 0.6 ? 'under' : 'ok';
-  const voiceObj = GEMINI_VOICES.find((v) => v.voiceName === selectedVoice);
-  const snapshotKey = `${headline}|${scriptText}|${selectedVoice}|${chimeSound}`;
+  const voiceObj =
+    GEMINI_VOICES.find((v) => v.id === selectedVoice || v.voiceName === selectedVoice) || GEMINI_VOICES[0];
+  const snapshotKey = `${headline}|${scriptText}|${selectedVoice}|${chimeSound}|${scriptMode}|${radioFormat}`;
   const isSaved = savedSnapshot === snapshotKey;
   const mp3Blocked = aiStatus === 'offline';
 
@@ -224,7 +277,9 @@ export const LocutionStudio: React.FC<Props> = ({
       }))
     );
     setHeadline(activeTemplateToLoad.title);
-    setScriptText(activeTemplateToLoad.baseScript.replace(/\[NOME\]/g, storeProfile.name || 'Nosso Estabelecimento'));
+    setScriptText(
+      activeTemplateToLoad.baseScript.replace(/\[NOME\]/g, storeProfile.name || 'Nosso Estabelecimento')
+    );
     setGeneratedAudioBase64(null);
     setExported(false);
     setStep(2);
@@ -237,6 +292,33 @@ export const LocutionStudio: React.FC<Props> = ({
   const invalidateAudio = () => {
     stopPlayback();
     setGeneratedAudioBase64(null);
+  };
+
+  const handleSelectScriptMode = (nextMode: ScriptMode) => {
+    setScriptMode(nextMode);
+    invalidateAudio();
+    if (nextMode === 'radio') {
+      if (chimeSound === 'supermarket_bell') {
+        setChimeSound('radio_jingle');
+      }
+      if (radioFormat === 'dupla_locutores') {
+        setSelectedVoice('Dupla_Radio');
+      } else if (selectedVoice === 'Fenrir') {
+        setSelectedVoice('RadioFM_M');
+      }
+    } else if (selectedVoice === 'Dupla_Radio') {
+      setSelectedVoice('Fenrir');
+    }
+  };
+
+  const handleSelectRadioFormat = (nextFormat: RadioFormat) => {
+    setRadioFormat(nextFormat);
+    invalidateAudio();
+    if (nextFormat === 'dupla_locutores') {
+      setSelectedVoice('Dupla_Radio');
+    } else if (selectedVoice === 'Dupla_Radio') {
+      setSelectedVoice('RadioFM_M');
+    }
   };
 
   // ---------- Produtos ----------
@@ -308,6 +390,9 @@ export const LocutionStudio: React.FC<Props> = ({
           tone,
           targetDuration,
           products: namedProducts,
+          scriptMode,
+          radioFormat,
+          radioStationName: radioStationName.trim(),
         }),
       });
       const data = await response.json();
@@ -316,8 +401,18 @@ export const LocutionStudio: React.FC<Props> = ({
         if (data.headline) setHeadline(data.headline);
         stepToastRef.current = toast.show('success', 'Roteiro pronto', {
           description:
-            aiStatus === 'offline' ? 'Gerado pelo modo automático (sem IA). Revise antes de gravar.' : 'Revise e ajuste o que quiser.',
-          action: { label: 'Voltar ao texto anterior', onClick: () => { setHeadline(previous.headline); setScriptText(previous.scriptText); } },
+            aiStatus === 'offline'
+              ? 'Gerado pelo modo automático (sem IA). Revise antes de gravar.'
+              : scriptMode === 'radio'
+              ? `Formato ${effectiveRadioName} pronto para locução.`
+              : 'Revise e ajuste o que quiser.',
+          action: {
+            label: 'Voltar ao texto anterior',
+            onClick: () => {
+              setHeadline(previous.headline);
+              setScriptText(previous.scriptText);
+            },
+          },
         });
       } else {
         toast.show('error', 'Não foi possível escrever o roteiro', {
@@ -343,7 +438,14 @@ export const LocutionStudio: React.FC<Props> = ({
       const response = await fetch('/api/refine-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ originalScript: scriptText, instruction, storeName: storeProfile.name }),
+        body: JSON.stringify({
+          originalScript: scriptText,
+          instruction,
+          storeName: storeProfile.name,
+          scriptMode,
+          radioFormat,
+          radioStationName: radioStationName.trim(),
+        }),
       });
       const data = await response.json();
       if (data.success && data.script) {
@@ -354,7 +456,9 @@ export const LocutionStudio: React.FC<Props> = ({
           action: { label: 'Desfazer ajuste', onClick: () => setScriptText(previous) },
         });
       } else {
-        toast.show('error', 'Não foi possível ajustar o roteiro', { description: data.error || 'Tente de novo.' });
+        toast.show('error', 'Não foi possível ajustar o roteiro', {
+          description: data.error || 'Tente de novo.',
+        });
       }
     } catch {
       toast.show('error', 'Sem conexão com o servidor', { description: 'O ajuste não foi aplicado.' });
@@ -393,7 +497,13 @@ export const LocutionStudio: React.FC<Props> = ({
       const response = await fetch('/api/generate-tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: scriptText, voiceName: selectedVoice, tone }),
+        body: JSON.stringify({
+          text: scriptText,
+          voiceName: voiceObj.voiceName,
+          tone,
+          styleInstruction: voiceObj.styleInstruction,
+          isMultiSpeaker: Boolean(voiceObj.isMultiSpeaker),
+        }),
       });
       data = await response.json();
     } catch {
@@ -420,7 +530,8 @@ export const LocutionStudio: React.FC<Props> = ({
     setPlayback('browser');
     setTimeout(
       () => {
-        const utterance = new SpeechSynthesisUtterance(scriptText);
+        const cleanSpoken = scriptText.replace(/^(locutora|locutor)\s*:\s*/gim, '');
+        const utterance = new SpeechSynthesisUtterance(cleanSpoken);
         utterance.lang = 'pt-BR';
         utterance.rate = tone === 'varejao_energico' || tone === 'oferta_relampago' ? 1.12 : 1.0;
         const ptVoice = window.speechSynthesis.getVoices().find((v) => v.lang.startsWith('pt'));
@@ -479,30 +590,38 @@ export const LocutionStudio: React.FC<Props> = ({
     }
   };
 
-  const handleVoiceSample = async (voiceName: string) => {
-    if (sampleVoice === voiceName) {
+  const handleVoiceSample = async (voiceId: string) => {
+    if (sampleVoice === voiceId) {
       stopPlayback();
       return;
     }
     stopPlayback();
-    setSampleLoading(voiceName);
+    setSampleLoading(voiceId);
+    const targetVoice = GEMINI_VOICES.find((v) => v.id === voiceId || v.voiceName === voiceId) || GEMINI_VOICES[0];
+
     try {
-      let base64 = sampleCache.current.get(voiceName);
+      let base64 = sampleCache.current.get(targetVoice.id);
       if (!base64) {
-        const shortName = voiceShortName(GEMINI_VOICES.find((v) => v.voiceName === voiceName)?.name || voiceName);
+        const shortName = voiceShortName(targetVoice.name);
+        const sampleText = targetVoice.isMultiSpeaker
+          ? `Locutor: E paramos a nossa programação aqui na ${effectiveRadioName}!\nLocutora: É isso aí! As melhores ofertas do ${storeProfile.name || 'seu mercado'} estão no ar!`
+          : `Olá! Eu sou ${shortName}, e posso anunciar as ofertas do ${storeProfile.name || 'seu mercado'}!`;
+
         const res = await fetch('/api/generate-tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            text: `Olá! Eu sou ${shortName}, e posso anunciar as ofertas do ${storeProfile.name || 'seu mercado'}.`,
-            voiceName,
+            text: sampleText,
+            voiceName: targetVoice.voiceName,
             tone,
+            styleInstruction: targetVoice.styleInstruction,
+            isMultiSpeaker: Boolean(targetVoice.isMultiSpeaker),
           }),
         });
         const data = await res.json();
         if (!data.success || !data.audioBase64) throw new Error(data.error);
         base64 = data.audioBase64 as string;
-        sampleCache.current.set(voiceName, base64);
+        sampleCache.current.set(targetVoice.id, base64);
       }
       const url = URL.createObjectURL(audioBufferToWavBlob(await createMixedAudioBuffer(base64, 'none')));
       const audio = new Audio(url);
@@ -512,7 +631,7 @@ export const LocutionStudio: React.FC<Props> = ({
         URL.revokeObjectURL(url);
       };
       await audio.play();
-      setSampleVoice(voiceName);
+      setSampleVoice(voiceId);
     } catch {
       toast.show('error', 'Não foi possível tocar a amostra', { description: 'Tente de novo em alguns segundos.' });
     } finally {
@@ -522,7 +641,9 @@ export const LocutionStudio: React.FC<Props> = ({
 
   const handleDownloadMp3 = async () => {
     if (mp3Blocked) {
-      toast.show('error', 'MP3 indisponível no modo sem IA', { description: 'A voz profissional ainda não está ativada. Peça a quem instalou o VozVarejo para ativar a IA.' });
+      toast.show('error', 'MP3 indisponível no modo sem IA', {
+        description: 'A voz profissional ainda não está ativada. Peça a quem instalou o VozVarejo para ativar a IA.',
+      });
       return;
     }
     if (!scriptText.trim()) {
@@ -530,9 +651,13 @@ export const LocutionStudio: React.FC<Props> = ({
       return;
     }
     setIsDownloadingMp3(true);
-    const toastId = toast.show('loading', generatedAudioBase64 ? 'Preparando o MP3…' : 'Gravando a voz e preparando o MP3…', {
-      description: 'Isso pode levar alguns segundos.',
-    });
+    const toastId = toast.show(
+      'loading',
+      generatedAudioBase64 ? 'Preparando o MP3…' : 'Gravando a voz e preparando o MP3…',
+      {
+        description: 'Isso pode levar alguns segundos.',
+      }
+    );
     try {
       const base64 = await requestAudioSynthesis();
       const mixedBuffer = await createMixedAudioBuffer(base64, chimeSound);
@@ -586,20 +711,24 @@ export const LocutionStudio: React.FC<Props> = ({
       script: scriptText,
       tone,
       targetDuration,
-      voiceName: voiceObj?.name || selectedVoice,
-      voiceGender: voiceObj?.gender || 'masculino',
+      voiceName: voiceObj.name,
+      voiceId: voiceObj.id,
+      voiceGender: voiceObj.gender,
       products,
       chimeSound,
       isFavorite: false,
       audioBase64: generatedAudioBase64 || undefined,
       audioMimeType: 'audio/wav',
+      scriptMode,
+      radioFormat,
+      radioStationName: radioStationName.trim() || undefined,
     });
     setSavedSnapshot(snapshotKey);
     toast.show('success', 'Salvo no histórico', { description: headline || 'Ofertas da Semana' });
   };
 
   const stepTitles: Record<StudioStep, { title: string; text: string }> = {
-    1: { title: 'O que vamos anunciar?', text: 'Confira a loja, escolha o estilo e liste as ofertas.' },
+    1: { title: 'O que vamos anunciar?', text: 'Confira a loja, escolha o formato e liste as ofertas.' },
     2: { title: 'Revise o roteiro', text: 'É isso que o locutor vai falar. Edite à vontade ou peça ajustes.' },
     3: { title: 'Escolha a voz e baixe', text: 'Ouça a prévia, troque a voz se quiser e baixe o MP3.' },
   };
@@ -618,7 +747,9 @@ export const LocutionStudio: React.FC<Props> = ({
                 onClick={() => setStep(s.id)}
                 className="w-full text-left"
               >
-                <span className={`block h-1 rounded-full mb-2 transition-colors ${s.id <= step ? 'bg-accent' : 'bg-line'}`} />
+                <span
+                  className={`block h-1 rounded-full mb-2 transition-colors ${s.id <= step ? 'bg-accent' : 'bg-line'}`}
+                />
                 <span className={`block text-xs font-medium ${active ? 'text-accent-fg' : 'text-muted'}`}>
                   {s.id}. {s.label}
                 </span>
@@ -629,7 +760,11 @@ export const LocutionStudio: React.FC<Props> = ({
       </ol>
 
       <header className="mb-6">
-        <h1 ref={headingRef} tabIndex={-1} className="text-2xl sm:text-[1.75rem] font-semibold tracking-tight text-fg outline-none">
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-2xl sm:text-[1.75rem] font-semibold tracking-tight text-fg outline-none"
+        >
           {stepTitles[step].title}
         </h1>
         <p className="text-[0.9375rem] text-muted mt-1">{stepTitles[step].text}</p>
@@ -653,15 +788,121 @@ export const LocutionStudio: React.FC<Props> = ({
                 type="text"
                 value={storeProfile.name}
                 onChange={(e) => onUpdateStoreProfile({ ...storeProfile, name: e.target.value })}
-                placeholder="Ex.: Supermercado Família"
+                placeholder="Ex.: Novo Boi João Dias"
                 autoComplete="organization"
                 className="field"
               />
               <p className="text-sm text-muted mt-1.5">O locutor fala esse nome na abertura e no encerramento.</p>
             </Card>
 
-            <Card title="Estilo e duração">
+            <Card title="Formato, estilo e duração">
+              {/* Seletor: Comercial Tradicional vs Modo Rádio Interna */}
               <fieldset>
+                <legend className="text-sm font-medium text-fg mb-2">Formato do roteiro</legend>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {SCRIPT_MODES.map((m) => {
+                    const checked = scriptMode === m.id;
+                    return (
+                      <label
+                        key={m.id}
+                        className={`relative flex items-start gap-3 rounded-[10px] border px-3.5 py-3 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-offset-2 ${
+                          checked ? 'border-accent bg-accent-soft' : 'border-line hover:border-line-strong'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="script-mode"
+                          value={m.id}
+                          checked={checked}
+                          onChange={() => handleSelectScriptMode(m.id)}
+                          className="sr-only"
+                        />
+                        {m.id === 'radio' ? (
+                          <Radio
+                            className={`w-4 h-4 mt-0.5 shrink-0 ${checked ? 'text-accent' : 'text-muted'}`}
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <Mic
+                            className={`w-4 h-4 mt-0.5 shrink-0 ${checked ? 'text-accent' : 'text-muted'}`}
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span className="flex-1 min-w-0 pr-5">
+                          <span className={`block text-[0.9375rem] font-medium ${checked ? 'text-accent-fg' : 'text-fg'}`}>
+                            {m.label}
+                          </span>
+                          <span className="block text-sm text-muted mt-0.5">{m.hint}</span>
+                        </span>
+                        {checked && <Check className="absolute top-3 right-3 w-4 h-4 text-accent" aria-hidden="true" />}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              {/* Opções contextuais do Modo Rádio Interna */}
+              {scriptMode === 'radio' && (
+                <div className="mt-4 pt-4 border-t border-line space-y-4">
+                  <fieldset>
+                    <legend className="text-sm font-medium text-fg mb-2">Formato do programa de rádio</legend>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {RADIO_FORMATS.map((rf) => {
+                        const checked = radioFormat === rf.id;
+                        return (
+                          <label
+                            key={rf.id}
+                            className={`relative flex flex-col gap-0.5 rounded-[10px] border px-3.5 py-3 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-offset-2 ${
+                              checked ? 'border-accent bg-accent-soft' : 'border-line hover:border-line-strong'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="radio-format"
+                              value={rf.id}
+                              checked={checked}
+                              onChange={() => handleSelectRadioFormat(rf.id)}
+                              className="sr-only"
+                            />
+                            <span
+                              className={`text-[0.9375rem] font-medium pr-5 ${checked ? 'text-accent-fg' : 'text-fg'}`}
+                            >
+                              {rf.label}
+                            </span>
+                            <span className="text-sm text-muted">{rf.hint}</span>
+                            {checked && (
+                              <Check className="absolute top-3 right-3 w-4 h-4 text-accent" aria-hidden="true" />
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+
+                  <div>
+                    <Label htmlFor="radio-station-name">
+                      Nome da rádio <span className="text-muted font-normal">(opcional)</span>
+                    </Label>
+                    <input
+                      id="radio-station-name"
+                      type="text"
+                      value={radioStationName}
+                      onChange={(e) => {
+                        setRadioStationName(e.target.value);
+                        invalidateAudio();
+                      }}
+                      placeholder={`Rádio ${storeProfile.name || 'Novo Boi João Dias'}`}
+                      className="field"
+                    />
+                    <p className="text-sm text-muted mt-1.5">
+                      Se deixar em branco, o locutor falará automaticamente{' '}
+                      <strong className="font-medium text-fg">“{effectiveRadioName}”</strong>.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <fieldset className="mt-5">
                 <legend className="text-sm font-medium text-fg mb-2">Estilo da locução</legend>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
                   {TONES.map((t) => {
@@ -684,7 +925,9 @@ export const LocutionStudio: React.FC<Props> = ({
                           }}
                           className="sr-only"
                         />
-                        <span className={`text-[0.9375rem] font-medium ${checked ? 'text-accent-fg' : 'text-fg'}`}>{t.label}</span>
+                        <span className={`text-[0.9375rem] font-medium ${checked ? 'text-accent-fg' : 'text-fg'}`}>
+                          {t.label}
+                        </span>
                         <span className="text-sm text-muted">{t.hint}</span>
                         {checked && <Check className="absolute top-3 right-3 w-4 h-4 text-accent" aria-hidden="true" />}
                       </label>
@@ -726,16 +969,30 @@ export const LocutionStudio: React.FC<Props> = ({
               description={`${namedProducts.length} ${namedProducts.length === 1 ? 'produto' : 'produtos'} na locução`}
             >
               {products.length === 0 ? (
-                <div className={`rounded-[10px] border border-dashed px-4 py-8 text-center ${productError ? 'border-danger' : 'border-line-strong'}`}>
+                <div
+                  className={`rounded-[10px] border border-dashed px-4 py-8 text-center ${
+                    productError ? 'border-danger' : 'border-line-strong'
+                  }`}
+                >
                   <p className="text-[0.9375rem] font-medium text-fg">Nenhum produto ainda</p>
-                  <p className="text-sm text-muted mt-1 mb-4">Adicione o que está em promoção ou escolha uma sugestão abaixo.</p>
-                  <Button variant="secondary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => handleAddProduct()}>
+                  <p className="text-sm text-muted mt-1 mb-4">
+                    Adicione o que está em promoção ou escolha uma sugestão abaixo.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<Plus className="w-4 h-4" />}
+                    onClick={() => handleAddProduct()}
+                  >
                     Adicionar produto
                   </Button>
                 </div>
               ) : (
                 <div>
-                  <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_8rem_7rem_2.5rem] gap-2 px-0.5 pb-2 text-sm font-medium text-muted" aria-hidden="true">
+                  <div
+                    className="hidden sm:grid grid-cols-[minmax(0,1fr)_8rem_7rem_2.5rem] gap-2 px-0.5 pb-2 text-sm font-medium text-muted"
+                    aria-hidden="true"
+                  >
                     <span>Produto</span>
                     <span>Preço</span>
                     <span>Unidade</span>
@@ -763,14 +1020,18 @@ export const LocutionStudio: React.FC<Props> = ({
                             className="field col-span-3 sm:col-span-1"
                           />
                           <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted pointer-events-none">R$</span>
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted pointer-events-none">
+                              R$
+                            </span>
                             <input
                               type="text"
                               inputMode="decimal"
                               aria-label={`Preço do produto ${i + 1}`}
                               placeholder="0,00"
                               value={p.promoPrice}
-                              onChange={(e) => handleUpdateProduct(p.id, 'promoPrice', e.target.value.replace(/[^\d.,]/g, ''))}
+                              onChange={(e) =>
+                                handleUpdateProduct(p.id, 'promoPrice', e.target.value.replace(/[^\d.,]/g, ''))
+                              }
                               className="field pl-9 font-semibold tabular-nums"
                             />
                           </div>
@@ -786,7 +1047,11 @@ export const LocutionStudio: React.FC<Props> = ({
                               </option>
                             ))}
                           </select>
-                          <IconButton label={`Remover ${p.name || `produto ${i + 1}`}`} tone="danger" onClick={() => handleRemoveProduct(p.id)}>
+                          <IconButton
+                            label={`Remover ${p.name || `produto ${i + 1}`}`}
+                            tone="danger"
+                            onClick={() => handleRemoveProduct(p.id)}
+                          >
                             <Trash2 className="w-4 h-4" />
                           </IconButton>
                         </li>
@@ -820,7 +1085,11 @@ export const LocutionStudio: React.FC<Props> = ({
                         key={sug.name}
                         type="button"
                         onClick={() =>
-                          handleAddProduct({ name: sug.name, promoPrice: sug.defaultPromo.replace('.', ','), unit: sug.unit })
+                          handleAddProduct({
+                            name: sug.name,
+                            promoPrice: sug.defaultPromo.replace('.', ','),
+                            unit: sug.unit,
+                          })
                         }
                         className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-line text-sm text-fg hover:border-line-strong hover:bg-sunken transition-colors"
                       >
@@ -891,7 +1160,18 @@ export const LocutionStudio: React.FC<Props> = ({
                 </div>
               </div>
 
-              <Label htmlFor="script">Texto do locutor</Label>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <label htmlFor="script" className="text-sm font-medium text-fg">
+                  Texto do locutor
+                </label>
+                {scriptMode === 'radio' && (
+                  <span className="text-xs text-muted">
+                    {radioFormat === 'dupla_locutores' ? 'Dupla ao vivo' : 'Interrupção da programação'} ·{' '}
+                    {effectiveRadioName}
+                  </span>
+                )}
+              </div>
+
               <div className="relative">
                 <textarea
                   id="script"
@@ -1023,15 +1303,20 @@ export const LocutionStudio: React.FC<Props> = ({
               </div>
             )}
 
-            <Card title="Voz do locutor">
+            <Card
+              title="Voz do locutor"
+              description="Escolha entre vozes tradicionais de varejo, locutores estilo Rádio FM, Sertanejo & Bairro ou Dupla ao vivo."
+            >
               <fieldset>
                 <legend className="sr-only">Voz do locutor</legend>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
                   {GEMINI_VOICES.map((v) => {
-                    const checked = selectedVoice === v.voiceName;
+                    const checked = voiceObj.id === v.id;
+                    const genderLabel =
+                      v.gender === 'dupla' ? 'Dupla (M + F)' : v.gender === 'masculino' ? 'Masculina' : 'Feminina';
                     return (
                       <label
-                        key={v.voiceName}
+                        key={v.id}
                         className={`relative flex flex-col rounded-[10px] border px-4 py-3.5 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-offset-2 ${
                           checked ? 'border-accent bg-accent-soft' : 'border-line hover:border-line-strong'
                         }`}
@@ -1039,20 +1324,23 @@ export const LocutionStudio: React.FC<Props> = ({
                         <input
                           type="radio"
                           name="voice"
-                          value={v.voiceName}
+                          value={v.id}
                           checked={checked}
                           onChange={() => {
-                            setSelectedVoice(v.voiceName);
+                            setSelectedVoice(v.id);
                             invalidateAudio();
                           }}
                           className="sr-only"
                         />
-                        <span className="flex items-center gap-2">
+                        <span className="flex items-center gap-2 pr-5">
+                          {v.isMultiSpeaker && (
+                            <Users className="w-4 h-4 text-accent shrink-0" aria-hidden="true" />
+                          )}
                           <span className={`text-[0.9375rem] font-semibold ${checked ? 'text-accent-fg' : 'text-fg'}`}>
                             {voiceShortName(v.name)}
                           </span>
                           <span className="text-xs text-muted px-1.5 py-0.5 rounded bg-sunken border border-line">
-                            {v.gender === 'masculino' ? 'Masculina' : 'Feminina'}
+                            {genderLabel}
                           </span>
                         </span>
                         <span className="text-sm text-fg mt-1">{voiceHint(v.name)}</span>
@@ -1062,16 +1350,22 @@ export const LocutionStudio: React.FC<Props> = ({
                             variant="ghost"
                             size="sm"
                             className="self-start mt-2 -ml-2"
-                            loading={sampleLoading === v.voiceName}
-                            icon={sampleVoice === v.voiceName ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-                            aria-label={`${sampleVoice === v.voiceName ? 'Parar' : 'Ouvir'} amostra da voz ${voiceShortName(v.name)}`}
+                            loading={sampleLoading === v.id}
+                            icon={
+                              sampleVoice === v.id ? (
+                                <Pause className="w-4 h-4 fill-current" />
+                              ) : (
+                                <Play className="w-4 h-4 fill-current" />
+                              )
+                            }
+                            aria-label={`${sampleVoice === v.id ? 'Parar' : 'Ouvir'} amostra da voz ${voiceShortName(v.name)}`}
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              handleVoiceSample(v.voiceName);
+                              handleVoiceSample(v.id);
                             }}
                           >
-                            {sampleVoice === v.voiceName ? 'Parar' : 'Ouvir amostra'}
+                            {sampleVoice === v.id ? 'Parar' : 'Ouvir amostra'}
                           </Button>
                         )}
                         {checked && <Check className="absolute top-3.5 right-3.5 w-4 h-4 text-accent" aria-hidden="true" />}
@@ -1082,9 +1376,9 @@ export const LocutionStudio: React.FC<Props> = ({
               </fieldset>
             </Card>
 
-            <Card title="Sino de abertura" description="Toca antes da voz para chamar a atenção dos clientes.">
+            <Card title="Sino ou vinheta de abertura" description="Toca antes da voz para chamar a atenção dos clientes.">
               <fieldset>
-                <legend className="sr-only">Sino de abertura</legend>
+                <legend className="sr-only">Sino ou vinheta de abertura</legend>
                 <ul className="divide-y divide-line border border-line rounded-[10px]">
                   {CHIMES.map((c) => {
                     const checked = chimeSound === c.id;
@@ -1101,10 +1395,14 @@ export const LocutionStudio: React.FC<Props> = ({
                           />
                           {c.id === 'none' ? (
                             <BellOff className="w-4 h-4 shrink-0 text-muted" aria-hidden="true" />
+                          ) : c.id === 'radio_jingle' ? (
+                            <Radio className="w-4 h-4 shrink-0 text-muted" aria-hidden="true" />
                           ) : (
                             <Bell className="w-4 h-4 shrink-0 text-muted" aria-hidden="true" />
                           )}
-                          <span className={`text-[0.9375rem] ${checked ? 'font-semibold text-fg' : 'text-fg'}`}>{c.label}</span>
+                          <span className={`text-[0.9375rem] ${checked ? 'font-semibold text-fg' : 'text-fg'}`}>
+                            {c.label}
+                          </span>
                         </label>
                         {c.id !== 'none' && (
                           <Button
@@ -1162,10 +1460,18 @@ export const LocutionStudio: React.FC<Props> = ({
               aria-label="Posição da prévia"
               aria-valuetext={`${formatSeconds(progress * duration)} de ${formatSeconds(duration)}`}
               className="absolute -top-2 inset-x-0 w-full h-4 appearance-none bg-transparent cursor-pointer [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:bg-line [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:-mt-[5px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-moz-range-track]:h-1 [&::-moz-range-track]:bg-line [&::-moz-range-progress]:h-1 [&::-moz-range-progress]:bg-accent [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent"
-              style={{ background: `linear-gradient(to right, var(--accent) ${progress * 100}%, transparent ${progress * 100}%) center / 100% 4px no-repeat` }}
+              style={{
+                background: `linear-gradient(to right, var(--accent) ${progress * 100}%, transparent ${
+                  progress * 100
+                }%) center / 100% 4px no-repeat`,
+              }}
             />
           ) : (
-            playback === 'browser' && <div className="absolute top-0 inset-x-0 h-1 overflow-hidden" aria-hidden="true"><div className="skeleton h-full rounded-none" /></div>
+            playback === 'browser' && (
+              <div className="absolute top-0 inset-x-0 h-1 overflow-hidden" aria-hidden="true">
+                <div className="skeleton h-full rounded-none" />
+              </div>
+            )
           )}
           <div className="max-w-5xl mx-auto px-4 sm:px-8 h-[72px] flex items-center gap-3">
             <Button
@@ -1175,7 +1481,13 @@ export const LocutionStudio: React.FC<Props> = ({
               disabled={isDownloadingMp3 || scriptBusy}
               aria-label={isPlaying ? 'Parar prévia' : 'Ouvir prévia'}
               className="w-12 h-12 px-0 rounded-full shrink-0"
-              icon={isSynthesizingAudio ? undefined : isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current translate-x-px" />}
+              icon={
+                isSynthesizingAudio ? undefined : isPlaying ? (
+                  <Pause className="w-5 h-5 fill-current" />
+                ) : (
+                  <Play className="w-5 h-5 fill-current translate-x-px" />
+                )
+              }
             />
             <div className="flex-1 min-w-0">
               <p className="text-[0.9375rem] font-semibold text-fg truncate">{headline || 'Sem título'}</p>
@@ -1185,10 +1497,10 @@ export const LocutionStudio: React.FC<Props> = ({
                   : playback === 'browser'
                   ? 'Tocando com a voz do navegador'
                   : playback === 'audio'
-                  ? `${formatSeconds(progress * duration)} / ${formatSeconds(duration)} · ${voiceShortName(voiceObj?.name || selectedVoice)}`
+                  ? `${formatSeconds(progress * duration)} / ${formatSeconds(duration)} · ${voiceShortName(voiceObj.name)}`
                   : mp3Blocked
                   ? `~${formatSeconds(estimatedSeconds)} · Sem IA: prévia com a voz do aparelho, sem MP3`
-                  : `~${formatSeconds(estimatedSeconds)} · ${voiceShortName(voiceObj?.name || selectedVoice)} · ${
+                  : `~${formatSeconds(estimatedSeconds)} · ${voiceShortName(voiceObj.name)} · ${
                       CHIMES.find((c) => c.id === chimeSound)?.label
                     }`}
               </p>
@@ -1215,7 +1527,9 @@ export const LocutionStudio: React.FC<Props> = ({
               loading={isDownloadingMp3}
               disabled={isSynthesizingAudio || scriptBusy || !scriptText.trim() || mp3Blocked}
               aria-describedby={mp3Blocked ? 'mp3-blocked-reason' : undefined}
-              title={mp3Blocked ? 'MP3 indisponível no modo sem IA' : !scriptText.trim() ? 'Escreva o roteiro primeiro' : undefined}
+              title={
+                mp3Blocked ? 'MP3 indisponível no modo sem IA' : !scriptText.trim() ? 'Escreva o roteiro primeiro' : undefined
+              }
               icon={<Download className="w-4 h-4" />}
               aria-label="Baixar MP3"
               className="shrink-0 w-11 px-0 sm:w-auto sm:px-4"

@@ -1,6 +1,6 @@
 {
-  "summary": "Plano de implementação para corrigir o Modo Diurno no Tailwind v4, aprimorar os textos gerados pelo agente de IA para soarem como um locutor comercial real e implementar as 3 durações (Curta 15s-20s, Média 30s-40s e Longa 60s-90s).",
-  "updatedAt": "2026-10-13T20:06:31.745208764Z",
-  "requestFeedback": true,
-  "userFacing": true
+  "summary":  "Plano de implementação para o Modo Rádio Interna (Interrupção da Programação e Dupla de Locutores ao Vivo), campo opcional para o nome da rádio usando automaticamente o nome da loja, e expansão das opções de vozes (Locutor/Locutora FM Comercial, Locutor Popular Sertanejo & Bairro e Dupla de Locutores) mantendo o design system limpo e amigável do VozVarejo.",
+  "updatedAt":  "2026-10-28T16:22:34.086998441Z",
+  "requestFeedback":  true,
+  "userFacing":  true
 }

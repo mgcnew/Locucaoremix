@@ -11,6 +11,10 @@ export type LocutionTone =
 
 export type TargetDuration = 'curta' | 'media' | 'longa' | '15s' | '30s' | '45s' | '60s';
 
+export type ScriptMode = 'comercial' | 'radio';
+
+export type RadioFormat = 'flash_interrupcao' | 'dupla_locutores';
+
 export interface ProductItem {
   id: string;
   name: string;
@@ -34,14 +38,22 @@ export interface StoreProfile {
 export interface VoiceOption {
   id: string;
   name: string;
-  gender: 'masculino' | 'feminino';
+  gender: 'masculino' | 'feminino' | 'dupla';
   provider: 'gemini' | 'browser';
-  voiceName: string; // 'Fenrir', 'Puck', 'Charon', 'Kore', 'Zephyr'
+  voiceName: string; // 'Fenrir', 'Puck', 'Charon', 'Kore', 'Zephyr', 'Orus', 'Aoede', 'DUPLA_FM'
   description: string;
   tag: string;
+  styleInstruction?: string;
+  isMultiSpeaker?: boolean;
 }
 
-export type ChimeSoundType = 'none' | 'supermarket_bell' | 'chime_tri' | 'alert_beep' | 'party_fanfare';
+export type ChimeSoundType =
+  | 'none'
+  | 'supermarket_bell'
+  | 'radio_jingle'
+  | 'chime_tri'
+  | 'alert_beep'
+  | 'party_fanfare';
 
 export interface SavedLocution {
   id: string;
@@ -52,13 +64,17 @@ export interface SavedLocution {
   tone: LocutionTone;
   targetDuration: TargetDuration;
   voiceName: string;
-  voiceGender: 'masculino' | 'feminino';
+  voiceId?: string;
+  voiceGender: 'masculino' | 'feminino' | 'dupla';
   products: ProductItem[];
   chimeSound: ChimeSoundType;
   isFavorite: boolean;
   audioBase64?: string;
   audioMimeType?: string;
   tags?: string[];
+  scriptMode?: ScriptMode;
+  radioFormat?: RadioFormat;
+  radioStationName?: string;
 }
 
 export interface SeasonalTemplate {

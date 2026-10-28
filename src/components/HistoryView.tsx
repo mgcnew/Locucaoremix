@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SavedLocution } from '../types';
+import { GEMINI_VOICES } from '../data/voices';
 import { Check, Copy, Download, History, Pause, PenLine, Play, Search, SearchX, Share2, Star, Trash2 } from 'lucide-react';
 import {
   triggerFileDownload,
@@ -74,12 +75,25 @@ export const HistoryView: React.FC<Props> = ({
     const cached = item.audioBase64 || audioCache.current.get(item.id) || (await getAudio(item.id));
     if (cached) return cached;
     if (aiStatus === 'offline') throw new Error('A voz profissional ainda não está ativada. Peça a quem instalou o VozVarejo para ativar a IA.');
+    const matchedVoice =
+      GEMINI_VOICES.find(
+        (v) =>
+          v.id === item.voiceId ||
+          v.name === item.voiceName ||
+          v.voiceName === item.voiceName.split(' ')[0]
+      ) || GEMINI_VOICES[0];
     let data: any;
     try {
       const res = await fetch('/api/generate-tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: item.script, voiceName: item.voiceName.split(' ')[0] || 'Fenrir', tone: item.tone }),
+        body: JSON.stringify({
+          text: item.script,
+          voiceName: matchedVoice.voiceName,
+          tone: item.tone,
+          styleInstruction: matchedVoice.styleInstruction,
+          isMultiSpeaker: Boolean(matchedVoice.isMultiSpeaker),
+        }),
       });
       data = await res.json();
     } catch {
