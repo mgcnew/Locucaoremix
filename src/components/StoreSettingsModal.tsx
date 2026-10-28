@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { StoreProfile } from '../types';
-import { Store, MapPin, Tag, CreditCard, Sparkles, X, Check } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { StoreProfile, StoreType } from '../types';
+import { X } from 'lucide-react';
+import { Button, IconButton, Label } from './ui';
+import { useToast } from './Toast';
 
 interface Props {
   isOpen: boolean;
@@ -9,174 +11,172 @@ interface Props {
   onSave: (profile: StoreProfile) => void;
 }
 
-export const StoreSettingsModal: React.FC<Props> = ({
-  isOpen,
-  onClose,
-  profile,
-  onSave,
-}) => {
-  const [formData, setFormData] = useState<StoreProfile>({ ...profile });
+const STORE_TYPES: { id: StoreType; label: string }[] = [
+  { id: 'acougue', label: 'Açougue e casa de carnes' },
+  { id: 'supermercado', label: 'Supermercado' },
+  { id: 'mercearia', label: 'Mercearia e empório' },
+  { id: 'atacarejo', label: 'Atacarejo e distribuidora' },
+];
 
-  if (!isOpen) return null;
+export const StoreSettingsModal: React.FC<Props> = ({ isOpen, onClose, profile, onSave }) => {
+  const toast = useToast();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [formData, setFormData] = useState<StoreProfile>({ ...profile });
+  const [nameError, setNameError] = useState(false);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (isOpen && !dialog.open) {
+      setFormData({ ...profile });
+      setNameError(false);
+      dialog.showModal();
+    } else if (!isOpen && dialog.open) {
+      dialog.close();
+    }
+  }, [isOpen]);
+
+  const set = (field: keyof StoreProfile) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setFormData((d) => ({ ...d, [field]: e.target.value }));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    if (!formData.name.trim()) {
+      setNameError(true);
+      document.getElementById('store-form-name')?.focus();
+      return;
+    }
+    onSave({ ...formData, name: formData.name.trim() });
+    toast.show('success', 'Dados da loja salvos', { description: 'Vão entrar nas próximas locuções.' });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-6 text-slate-900 dark:text-white my-8">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl">
-            <Store className="w-5 h-5" />
-          </div>
+    <dialog
+      ref={dialogRef}
+      onClose={onClose}
+      onClick={(e) => e.target === dialogRef.current && onClose()}
+      aria-labelledby="store-dialog-title"
+      className="m-auto w-[calc(100%-2rem)] max-w-xl max-h-[calc(100dvh-2rem)] rounded-2xl border border-line bg-surface text-fg p-0 shadow-float backdrop:bg-black/50 backdrop:backdrop-blur-[2px] open:animate-toast-in"
+    >
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col max-h-[calc(100dvh-2rem)]">
+        <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              Identidade do Estabelecimento
+            <h2 id="store-dialog-title" className="text-lg font-semibold text-fg">
+              Dados da loja
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Estes dados serão automaticamente anexados em todas as locuções e anúncios.
+            <p className="text-sm text-muted mt-0.5">Usados automaticamente em todas as locuções.</p>
+          </div>
+          <IconButton label="Fechar" onClick={onClose} className="-mr-2 -mt-1">
+            <X className="w-5 h-5" />
+          </IconButton>
+        </div>
+
+        <div className="px-6 pb-6 space-y-4 overflow-y-auto">
+          <div>
+            <Label htmlFor="store-form-name">Nome da loja</Label>
+            <input
+              id="store-form-name"
+              type="text"
+              placeholder="Ex.: Açougue Boi de Ouro"
+              value={formData.name}
+              onChange={(e) => {
+                set('name')(e);
+                if (e.target.value.trim()) setNameError(false);
+              }}
+              aria-invalid={nameError || undefined}
+              aria-describedby="store-form-name-hint"
+              className="field"
+            />
+            <p id="store-form-name-hint" className={`text-sm mt-1.5 ${nameError ? 'text-danger' : 'text-muted'}`}>
+              {nameError ? 'Informe o nome da loja.' : 'O locutor fala esse nome na abertura e no encerramento.'}
             </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="store-form-type">Ramo</Label>
+              <select id="store-form-type" value={formData.type} onChange={set('type')} className="field">
+                {STORE_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="store-form-slogan">Slogan</Label>
+              <input
+                id="store-form-slogan"
+                type="text"
+                placeholder="Ex.: Tradição em carnes nobres"
+                value={formData.slogan}
+                onChange={set('slogan')}
+                className="field"
+              />
+            </div>
+            <div>
+              <Label htmlFor="store-form-location">Endereço ou referência</Label>
+              <input
+                id="store-form-location"
+                type="text"
+                placeholder="Ex.: No Centro, ao lado da praça"
+                value={formData.location}
+                onChange={set('location')}
+                className="field"
+              />
+            </div>
+            <div>
+              <Label htmlFor="store-form-payment">Formas de pagamento</Label>
+              <input
+                id="store-form-payment"
+                type="text"
+                placeholder="Ex.: Pix, cartões e vale"
+                value={formData.paymentMethods}
+                onChange={set('paymentMethods')}
+                className="field"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="store-form-opening">
+              Frase de abertura <span className="font-normal text-muted">(opcional)</span>
+            </Label>
+            <input
+              id="store-form-opening"
+              type="text"
+              placeholder="Ex.: Atenção clientes e amigos do Boi de Ouro!"
+              value={formData.openingGreeting}
+              onChange={set('openingGreeting')}
+              className="field"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="store-form-closing">
+              Frase de encerramento <span className="font-normal text-muted">(opcional)</span>
+            </Label>
+            <input
+              id="store-form-closing"
+              type="text"
+              placeholder="Ex.: Vem pro Boi de Ouro, aqui a qualidade é sagrada!"
+              value={formData.closingPhrase}
+              onChange={set('closingPhrase')}
+              className="field"
+            />
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-              Nome do Estabelecimento *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="Ex: Açougue & Casa de Carnes Boi de Ouro"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
-            />
-            <p className="text-[11px] text-slate-400 mt-1">
-              O locutor falará este nome na abertura e encerramento do anúncio.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                Ramo de Atuação
-              </label>
-              <select
-                value={formData.type}
-                onChange={(e) =>
-                  setFormData({ ...formData, type: e.target.value as any })
-                }
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-white focus:outline-hidden focus:border-amber-500"
-              >
-                <option value="acougue">🥩 Açougue & Casa de Carnes</option>
-                <option value="supermercado">🛒 Supermercado & Hipermercado</option>
-                <option value="mercearia">🏪 Mercearia & Empório</option>
-                <option value="atacarejo">📦 Atacarejo & Distribuidora</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                <Tag className="w-3.5 h-3.5 text-amber-500" /> Slogan / Diferencial
-              </label>
-              <input
-                type="text"
-                placeholder="Ex: Tradição em carnes nobres"
-                value={formData.slogan}
-                onChange={(e) => setFormData({ ...formData, slogan: e.target.value })}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-emerald-500" /> Bairro / Cidade / Referência
-              </label>
-              <input
-                type="text"
-                placeholder="Ex: No Centro, próximo à praça"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                <CreditCard className="w-3.5 h-3.5 text-blue-500" /> Formas de Pagamento
-              </label>
-              <input
-                type="text"
-                placeholder="Ex: Cartões, Pix e Vales"
-                value={formData.paymentMethods}
-                onChange={(e) =>
-                  setFormData({ ...formData, paymentMethods: e.target.value })
-                }
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Chamada de Abertura Fixa (Opcional)
-            </label>
-            <input
-              type="text"
-              placeholder="Ex: Atenção clientes e amigos do Boi de Ouro!"
-              value={formData.openingGreeting}
-              onChange={(e) =>
-                setFormData({ ...formData, openingGreeting: e.target.value })
-              }
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-              Assinatura / Encerramento Fixo (Opcional)
-            </label>
-            <input
-              type="text"
-              placeholder="Ex: Vem pro Boi de Ouro, aqui a qualidade é sagrada!"
-              value={formData.closingPhrase}
-              onChange={(e) =>
-                setFormData({ ...formData, closingPhrase: e.target.value })
-              }
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
-            />
-          </div>
-
-          <div className="pt-4 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl transition flex items-center gap-1.5 shadow-xs"
-            >
-              <Check className="w-4 h-4" /> Salvar Configurações
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-4 border-t border-line">
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" variant="primary">
+            Salvar dados
+          </Button>
+        </div>
+      </form>
+    </dialog>
   );
 };

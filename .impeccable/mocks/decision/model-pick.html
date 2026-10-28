@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:#fffaf0;color:#1a1410;font-family:'Atkinson Hyperlegible',sans-serif}
+.brush{font-family:'Kalam',cursive;font-weight:700}
+header{height:76px;background:#ffd21f;display:flex;align-items:center;padding:0 40px;border-bottom:4px solid #1a1410}
+.logo{font-size:36px;color:#e0261b}
+nav{display:flex;gap:6px;margin-left:auto}
+nav a{font-weight:700;font-size:15px;padding:10px 16px;border-radius:8px}
+nav a.on{background:#1a1410;color:#ffd21f}
+main{display:grid;grid-template-columns:560px 1fr;gap:28px;padding:28px 40px}
+.card{background:#fff;border:2px solid #1a1410;border-radius:14px;padding:24px}
+h2{font-size:36px;color:#e0261b;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.tag{background:#ffd21f;border:2px solid #1a1410;border-radius:10px;padding:12px 14px;position:relative}
+.tag .nm{font-weight:700;font-size:15px}
+.tag .p{font-family:Kalam;font-weight:700;color:#e0261b;font-size:52px;line-height:1;margin-top:6px;display:flex}
+.tag .p small{font-size:18px;margin-top:6px}
+.tag .p sup{font-size:24px;margin-top:4px}
+.tag .u{font-size:12px}
+.add{border:2px dashed #1a1410;border-radius:10px;display:grid;place-items:center;font-weight:700}
+.cta{height:58px;border-radius:12px;background:#e0261b;color:#fff;display:grid;place-items:center;font-weight:700;font-size:18px}
+.script{font-size:18px;line-height:1.6;border:2px solid #e6dcc6;border-radius:12px;padding:18px;height:230px;margin:10px 0 16px}
+.row{display:flex;gap:10px;margin-bottom:16px}
+.sel{flex:1;border:2px solid #1a1410;border-radius:10px;padding:12px 14px;font-weight:700}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.b1{height:56px;border-radius:12px;background:#1a1410;color:#fff;display:grid;place-items:center;font-weight:700}
+.b2{height:56px;border-radius:12px;background:#0f7a3d;color:#fff;display:grid;place-items:center;font-weight:700}
+</style></head><body>
+<header><div class="brush logo">VozVarejo</div>
+<nav><a class="on">Criar locução</a><a>Modelos prontos</a><a>Histórico</a></nav></header>
+<main>
+ <section class="card">
+  <h2 class="brush">Ofertas de hoje</h2>
+  <div class="grid">
+   <div class="tag"><div class="nm">Picanha Maturada</div><div class="p"><small>R$</small>49<sup>90</sup></div><div class="u">o kg</div></div>
+   <div class="tag"><div class="nm">Linguiça Toscana</div><div class="p"><small>R$</small>18<sup>90</sup></div><div class="u">o kg</div></div>
+   <div class="tag"><div class="nm">Carvão 3 kg</div><div class="p"><small>R$</small>13<sup>90</sup></div><div class="u">pacote</div></div>
+   <div class="add">+ Adicionar oferta</div>
+  </div>
+  <div class="cta">Escrever roteiro com IA</div>
+ </section>
+ <section class="card">
+  <h2 class="brush">Sextou do Churrasco</h2>
+  <div class="script">Atenção clientes do Boi de Ouro! Parou tudo pra ouvir as ofertas de hoje! Picanha bovina maturada por apenas quarenta e nove e noventa o quilo! Linguiça toscana fresquinha a dezoito e noventa, e carvão vegetal de três quilos por treze e noventa! Vem pro Boi de Ouro!</div>
+  <div class="row"><div class="sel">Voz: Fenrir (grave)</div><div class="sel">Sino: Ding-dong</div></div>
+  <div class="btns"><div class="b1">▶ Ouvir prévia</div><div class="b2">Baixar MP3</div></div>
+ </section>
+</main>
+</body></html>

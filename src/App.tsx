@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Header } from './components/Header';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Sidebar, AppTab, StudioStep, AiStatus } from './components/Sidebar';
+import { useToast } from './components/Toast';
+import { putAudio, pruneAudio } from './utils/audioStore';
 import { LocutionStudio } from './components/LocutionStudio';
 import { TemplatesView } from './components/TemplatesView';
 import { HistoryView } from './components/HistoryView';
+import { RadioView } from './components/RadioView';
 import { StoreSettingsModal } from './components/StoreSettingsModal';
 import { StoreProfile, SavedLocution, SeasonalTemplate } from './types';
 
@@ -58,37 +61,42 @@ const INITIAL_SAVED_LOCUTIONS: SavedLocution[] = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'studio' | 'templates' | 'history'>('studio');
+  const toast = useToast();
+  const [activeTab, setActiveTab] = useState<AppTab>('studio');
+  const [studioStep, setStudioStep] = useState<StudioStep>(1);
+  const [completedSteps, setCompletedSteps] = useState<Record<StudioStep, boolean>>({ 1: false, 2: false, 3: false });
   const [storeModalOpen, setStoreModalOpen] = useState(false);
+  const [aiStatus, setAiStatus] = useState<AiStatus>('checking');
+  const [radioOnAir, setRadioOnAir] = useState(false);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
       const saved = localStorage.getItem('vozvarejo_theme');
-      return saved === 'dark' ? 'dark' : 'light';
-    } catch {
-      return 'light';
-    }
+      if (saved === 'dark' || saved === 'light') return saved;
+    } catch {}
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-      root.style.colorScheme = 'dark';
-    } else {
-      root.classList.remove('dark');
-      root.style.colorScheme = 'light';
-    }
-    try {
-      localStorage.setItem('vozvarejo_theme', theme);
-    } catch (e) {
-      console.error(e);
-    }
+    document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
   const handleToggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+    setTheme((prev) => {
+      const next = prev === 'light' ? 'dark' : 'light';
+      try {
+        localStorage.setItem('vozvarejo_theme', next);
+      } catch {}
+      return next;
+    });
   };
+
+  useEffect(() => {
+    fetch('/api/status')
+      .then((r) => r.json())
+      .then((d) => setAiStatus(d.ai ? 'online' : 'offline'))
+      .catch(() => setAiStatus('offline'));
+  }, []);
 
   const [storeProfile, setStoreProfile] = useState<StoreProfile>(() => {
     try {
@@ -120,26 +128,55 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('vozvarejo_saved_locutions', JSON.stringify(savedLocutions));
+      // O áudio vive no IndexedDB; aqui fica só o texto e os metadados
+      localStorage.setItem(
+        'vozvarejo_saved_locutions',
+        JSON.stringify(savedLocutions.map(({ audioBase64, ...rest }) => rest))
+      );
     } catch (e) {
       console.error(e);
+      toast.show('error', 'O histórico não pôde ser salvo', {
+        description: 'O armazenamento do navegador está cheio ou bloqueado.',
+      });
     }
   }, [savedLocutions]);
 
-  const handleSaveLocution = (newLocution: SavedLocution) => {
-    setSavedLocutions([newLocution, ...savedLocutions]);
+  // Migra áudios antigos do localStorage para o IndexedDB e limpa áudios órfãos
+  useEffect(() => {
+    (async () => {
+      const withAudio = savedLocutions.filter((l) => l.audioBase64);
+      await Promise.all(withAudio.map((l) => putAudio(l.id, l.audioBase64!)));
+      if (withAudio.length) setSavedLocutions((list) => list.map(({ audioBase64, ...rest }) => rest));
+      await pruneAudio(savedLocutions.map((l) => l.id));
+    })();
+  }, []);
+
+  const handleSaveLocution = ({ audioBase64, ...newLocution }: SavedLocution) => {
+    if (audioBase64) putAudio(newLocution.id, audioBase64);
+    setSavedLocutions((list) => [newLocution, ...list]);
   };
 
   const handleToggleFavorite = (id: string) => {
-    setSavedLocutions(
-      savedLocutions.map((loc) =>
-        loc.id === id ? { ...loc, isFavorite: !loc.isFavorite } : loc
-      )
-    );
+    setSavedLocutions((list) => list.map((loc) => (loc.id === id ? { ...loc, isFavorite: !loc.isFavorite } : loc)));
   };
 
   const handleDeleteLocution = (id: string) => {
-    setSavedLocutions(savedLocutions.filter((loc) => loc.id !== id));
+    const index = savedLocutions.findIndex((loc) => loc.id === id);
+    const removed = savedLocutions[index];
+    if (!removed) return;
+    setSavedLocutions((list) => list.filter((loc) => loc.id !== id));
+    toast.show('info', 'Locução excluída', {
+      description: removed.headline,
+      action: {
+        label: 'Desfazer',
+        onClick: () =>
+          setSavedLocutions((list) => {
+            const next = [...list];
+            next.splice(index, 0, removed);
+            return next;
+          }),
+      },
+    });
   };
 
   const handleLoadIntoStudio = (item: SavedLocution) => {
@@ -165,43 +202,79 @@ export default function App() {
     setActiveTab('studio');
   };
 
+  const handleTabChange = (tab: AppTab) => {
+    setActiveTab(tab);
+    window.scrollTo({ top: 0 });
+  };
+
+  const handleProgress = useCallback((c: Record<StudioStep, boolean>) => setCompletedSteps(c), []);
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
-      <Header
+    <div className="min-h-dvh bg-bg text-fg">
+      <a
+        href="#conteudo"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[70] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-ink focus:text-on-ink"
+      >
+        Pular para o conteúdo
+      </a>
+
+      <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
+        studioStep={studioStep}
+        setStudioStep={setStudioStep}
+        completedSteps={completedSteps}
         savedCount={savedLocutions.length}
+        radioOnAir={radioOnAir}
+        storeName={storeProfile.name}
+        storeIsExample={storeProfile.name === DEFAULT_STORE_PROFILE.name}
+        onEditStore={() => setStoreModalOpen(true)}
+        aiStatus={aiStatus}
         theme={theme}
         onToggleTheme={handleToggleTheme}
       />
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6">
-        {activeTab === 'studio' && (
-          <LocutionStudio
-            storeProfile={storeProfile}
-            onUpdateStoreProfile={setStoreProfile}
-            onOpenStoreModal={() => setStoreModalOpen(true)}
-            onSaveLocution={handleSaveLocution}
-            activeTemplateToLoad={templateToLoad}
-            onClearTemplateToLoad={() => setTemplateToLoad(null)}
-          />
-        )}
+      <main id="conteudo" className="lg:pl-64">
+        <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-6 lg:pt-10">
+          {/* O estúdio fica montado para não perder o que está sendo editado ao trocar de aba */}
+          <div hidden={activeTab !== 'studio'}>
+            <LocutionStudio
+              storeProfile={storeProfile}
+              onUpdateStoreProfile={setStoreProfile}
+              onOpenStoreModal={() => setStoreModalOpen(true)}
+              onSaveLocution={handleSaveLocution}
+              activeTemplateToLoad={templateToLoad}
+              onClearTemplateToLoad={() => setTemplateToLoad(null)}
+              step={studioStep}
+              setStep={setStudioStep}
+              onProgress={handleProgress}
+              aiStatus={aiStatus}
+            />
+          </div>
 
-        {activeTab === 'templates' && (
-          <TemplatesView
-            storeProfile={storeProfile}
-            onSelectTemplate={handleSelectTemplate}
-          />
-        )}
+          {/* A rádio também fica montada para continuar tocando em outras abas */}
+          <div hidden={activeTab !== 'radio'}>
+            <RadioView
+              savedList={savedLocutions}
+              onAirChange={setRadioOnAir}
+              onGoToStudio={() => handleTabChange('studio')}
+              onGoToHistory={() => handleTabChange('history')}
+            />
+          </div>
 
-        {activeTab === 'history' && (
-          <HistoryView
-            savedList={savedLocutions}
-            onToggleFavorite={handleToggleFavorite}
-            onDelete={handleDeleteLocution}
-            onLoadIntoStudio={handleLoadIntoStudio}
-          />
-        )}
+          {activeTab === 'templates' && <TemplatesView storeProfile={storeProfile} onSelectTemplate={handleSelectTemplate} />}
+
+          {activeTab === 'history' && (
+            <HistoryView
+              savedList={savedLocutions}
+              onToggleFavorite={handleToggleFavorite}
+              onDelete={handleDeleteLocution}
+              onLoadIntoStudio={handleLoadIntoStudio}
+              onGoToStudio={() => handleTabChange('studio')}
+              aiStatus={aiStatus}
+            />
+          )}
+        </div>
       </main>
 
       <StoreSettingsModal

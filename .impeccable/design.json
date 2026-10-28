@@ -1,0 +1,626 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-28T15:33:04.371410+00:00",
+  "title": "Design System: VozVarejo Studio",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "canonical": "#f6f7f9",
+        "dark": "#0b0c0f",
+        "cssVar": "--bg",
+        "tonalRamp": [
+          "#111213",
+          "#28292a",
+          "#424244",
+          "#626365",
+          "#858688",
+          "#aaabad",
+          "#d0d1d3",
+          "#edeef0"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "White Surface",
+        "canonical": "#ffffff",
+        "dark": "#14161b",
+        "cssVar": "--surface",
+        "tonalRamp": [
+          "#111213",
+          "#28292a",
+          "#424244",
+          "#626365",
+          "#858688",
+          "#aaabad",
+          "#d0d1d3",
+          "#edeef0"
+        ]
+      },
+      "sunken": {
+        "role": "neutral",
+        "displayName": "Sunken Grey",
+        "canonical": "#f1f2f5",
+        "dark": "#0f1115",
+        "cssVar": "--sunken",
+        "tonalRamp": [
+          "#111213",
+          "#28292a",
+          "#424244",
+          "#626365",
+          "#858688",
+          "#aaabad",
+          "#d0d1d3",
+          "#edeef0"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#e4e6eb",
+        "dark": "#24272e",
+        "cssVar": "--line",
+        "tonalRamp": [
+          "#111213",
+          "#28292a",
+          "#424244",
+          "#626365",
+          "#858688",
+          "#aaabad",
+          "#d0d1d3",
+          "#edeef0"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Firm Hairline",
+        "canonical": "#cdd1d9",
+        "dark": "#363a44",
+        "cssVar": "--line-strong",
+        "tonalRamp": [
+          "#111213",
+          "#28292a",
+          "#424244",
+          "#626365",
+          "#858688",
+          "#aaabad",
+          "#d0d1d3",
+          "#edeef0"
+        ]
+      },
+      "fg": {
+        "role": "neutral",
+        "displayName": "Text Black",
+        "canonical": "#0d0f14",
+        "dark": "#eceef2",
+        "cssVar": "--fg",
+        "tonalRamp": [
+          "#0f1117",
+          "#26292e",
+          "#404248",
+          "#60636a",
+          "#83868d",
+          "#a8abb2",
+          "#ced1d8",
+          "#ebeef6"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Slate Muted",
+        "canonical": "#565c6b",
+        "dark": "#a3a9b6",
+        "cssVar": "--muted",
+        "tonalRamp": [
+          "#0d111d",
+          "#232936",
+          "#3c4250",
+          "#5d6372",
+          "#7f8696",
+          "#a4abbb",
+          "#cad1e2",
+          "#e7eeff"
+        ]
+      },
+      "subtle": {
+        "role": "neutral",
+        "displayName": "Faint Slate",
+        "canonical": "#8a90a0",
+        "dark": "#6c7280",
+        "cssVar": "--subtle",
+        "tonalRamp": [
+          "#0d111d",
+          "#232936",
+          "#3c4250",
+          "#5d6372",
+          "#7f8696",
+          "#a4abbb",
+          "#cad1e2",
+          "#e7eeff"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Console Ink",
+        "canonical": "#0d0f14",
+        "dark": "#f2f3f5",
+        "cssVar": "--ink",
+        "tonalRamp": [
+          "#0f1117",
+          "#26292e",
+          "#404248",
+          "#60636a",
+          "#83868d",
+          "#a8abb2",
+          "#ced1d8",
+          "#ebeef6"
+        ]
+      },
+      "ink-hover": {
+        "role": "neutral",
+        "displayName": "Console Ink Hover",
+        "canonical": "#262a33",
+        "dark": "#d9dce2",
+        "cssVar": "--ink-hover",
+        "tonalRamp": [
+          "#0f1117",
+          "#26292e",
+          "#404248",
+          "#60636a",
+          "#83868d",
+          "#a8abb2",
+          "#ced1d8",
+          "#ebeef6"
+        ]
+      },
+      "on-ink": {
+        "role": "neutral",
+        "displayName": "On-Ink",
+        "canonical": "#ffffff",
+        "dark": "#0d0f14",
+        "cssVar": "--on-ink",
+        "tonalRamp": [
+          "#111213",
+          "#28292a",
+          "#424244",
+          "#626365",
+          "#858688",
+          "#aaabad",
+          "#d0d1d3",
+          "#edeef0"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Studio Violet",
+        "canonical": "#6d28d9",
+        "dark": "#a78bfa",
+        "cssVar": "--accent",
+        "tonalRamp": [
+          "#1d0051",
+          "#35007c",
+          "#4f00aa",
+          "#6f2cdc",
+          "#915aff",
+          "#b289ff",
+          "#d6b8ff",
+          "#f2daff"
+        ],
+        "oklch": "oklch(49.1% 0.241 293)"
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Deep Violet",
+        "canonical": "#5b21b6",
+        "dark": "#c4b5fd",
+        "cssVar": "--accent-hover",
+        "tonalRamp": [
+          "#1d0051",
+          "#35007c",
+          "#4f00aa",
+          "#6f2cdc",
+          "#915aff",
+          "#b289ff",
+          "#d6b8ff",
+          "#f2daff"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Violet Wash",
+        "canonical": "#f2edfd",
+        "dark": "#221a38",
+        "cssVar": "--accent-soft",
+        "tonalRamp": [
+          "#1d0051",
+          "#35007c",
+          "#4f00aa",
+          "#6f2cdc",
+          "#915aff",
+          "#b289ff",
+          "#d6b8ff",
+          "#f2daff"
+        ]
+      },
+      "accent-fg": {
+        "role": "primary",
+        "displayName": "Violet Ink",
+        "canonical": "#5b21b6",
+        "dark": "#c9b8ff",
+        "cssVar": "--accent-fg",
+        "tonalRamp": [
+          "#1d0051",
+          "#35007c",
+          "#4f00aa",
+          "#6f2cdc",
+          "#915aff",
+          "#b289ff",
+          "#d6b8ff",
+          "#f2daff"
+        ]
+      },
+      "success": {
+        "role": "state",
+        "displayName": "Ledger Green",
+        "canonical": "#157f3c",
+        "dark": "#4ade80",
+        "cssVar": "--success",
+        "tonalRamp": [
+          "#001c00",
+          "#003700",
+          "#005411",
+          "#047835",
+          "#3c9c58",
+          "#65c27c",
+          "#98e7a8",
+          "#beffcb"
+        ]
+      },
+      "success-soft": {
+        "role": "state",
+        "displayName": "Ledger Green Tint",
+        "canonical": "#e8f6ed",
+        "dark": "#0f2618",
+        "cssVar": "--success-soft",
+        "tonalRamp": [
+          "#001c00",
+          "#003700",
+          "#005411",
+          "#047835",
+          "#3c9c58",
+          "#65c27c",
+          "#98e7a8",
+          "#beffcb"
+        ]
+      },
+      "warning": {
+        "role": "state",
+        "displayName": "Shelf Amber",
+        "canonical": "#a35a06",
+        "dark": "#fbbf24",
+        "cssVar": "--warning",
+        "tonalRamp": [
+          "#2d0000",
+          "#4e1100",
+          "#702b00",
+          "#964e00",
+          "#bc712b",
+          "#e59653",
+          "#ffc087",
+          "#ffe0ae"
+        ]
+      },
+      "warning-soft": {
+        "role": "state",
+        "displayName": "Shelf Amber Tint",
+        "canonical": "#fdf3e2",
+        "dark": "#2a200b",
+        "cssVar": "--warning-soft",
+        "tonalRamp": [
+          "#2d0000",
+          "#4e1100",
+          "#702b00",
+          "#964e00",
+          "#bc712b",
+          "#e59653",
+          "#ffc087",
+          "#ffe0ae"
+        ]
+      },
+      "danger": {
+        "role": "state",
+        "displayName": "Alarm Red",
+        "canonical": "#c42b2b",
+        "dark": "#f87171",
+        "cssVar": "--danger",
+        "tonalRamp": [
+          "#3a0000",
+          "#610000",
+          "#8a0000",
+          "#b71a1f",
+          "#e14a44",
+          "#ff786d",
+          "#ffa89c",
+          "#ffcdc1"
+        ]
+      },
+      "danger-soft": {
+        "role": "state",
+        "displayName": "Alarm Red Tint",
+        "canonical": "#fdeded",
+        "dark": "#2a1414",
+        "cssVar": "--danger-soft",
+        "tonalRamp": [
+          "#3a0000",
+          "#610000",
+          "#8a0000",
+          "#b71a1f",
+          "#e14a44",
+          "#ff786d",
+          "#ffa89c",
+          "#ffcdc1"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "One per view: step or view title, tracking-tight, 1.5rem to 1.75rem at 640px."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card headings; dialog title at 1.125rem."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Fields, choice-card names, nav items, player title; ss01 and cv11 on."
+      },
+      "body-sm": {
+        "displayName": "Body small",
+        "purpose": "Helper text, descriptions, toast copy, metadata in muted."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form labels and legends, sentence case."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Step hints, group labels, bottom-nav labels, tags, badges. Sentence case."
+      }
+    },
+    "shadows": [
+      {
+        "name": "float",
+        "value": "0 8px 24px -6px rgb(13 15 20 / 0.14), 0 2px 6px -2px rgb(13 15 20 / 0.08)",
+        "dark": "0 10px 30px -8px rgb(0 0 0 / 0.6), 0 2px 6px -2px rgb(0 0 0 / 0.4)",
+        "purpose": "Toasts and dialogs only."
+      },
+      {
+        "name": "thumb",
+        "value": "0 1px 3px rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+        "purpose": "Selected option inside a segmented control."
+      },
+      {
+        "name": "focus-halo",
+        "value": "0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent)",
+        "purpose": "Field focus, with violet border."
+      }
+    ],
+    "focus": {
+      "outline": "2px solid var(--accent)",
+      "outlineOffset": "2px"
+    },
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Entrances."
+      },
+      {
+        "name": "toast-in",
+        "value": "220ms, translateY(8px) scale(0.98) to rest, opacity 0 to 1",
+        "purpose": "Toast and dialog entrance."
+      },
+      {
+        "name": "fade-up",
+        "value": "260ms, translateY(6px) opacity 0.4 to rest",
+        "purpose": "Step content change."
+      },
+      {
+        "name": "shimmer",
+        "value": "1.6s linear infinite",
+        "purpose": "Skeletons and browser-voice playback strip."
+      },
+      {
+        "name": "field-transition",
+        "value": "120ms border-color, box-shadow",
+        "purpose": "Field hover/focus."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "all animation/transition durations to 0.01ms",
+        "purpose": "prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px",
+        "purpose": "Larger headline, 24px card padding, 2-column choice grids, 32px page padding."
+      },
+      {
+        "name": "lg",
+        "value": "1024px",
+        "purpose": "Sidebar replaces top bar, stepper and bottom nav."
+      },
+      {
+        "name": "xl",
+        "value": "1280px",
+        "purpose": "3-column choice grids."
+      }
+    ],
+    "layout": {
+      "sidebarWidth": "256px",
+      "contentMaxWidth": "1024px",
+      "mobileTopBar": "56px",
+      "bottomNav": "64px",
+      "playerBar": "72px"
+    },
+    "themes": {
+      "mechanism": ".dark class on <html>, set before paint from localStorage 'vozvarejo_theme' or prefers-color-scheme",
+      "onAccentDark": "#120a24"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink button for the forward action at each decision point.",
+      "html": "<button class=\"ds-btn-primary\">Escolher a voz <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/></svg></button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border:0;border-radius:10px;background:var(--ink,#0d0f14);color:var(--on-ink,#fff);font:600 0.9375rem/1 Geist,ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background-color 150ms}.ds-btn-primary:hover{background:var(--ink-hover,#262a33)}.ds-btn-primary:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:2px}.ds-btn-primary:disabled{opacity:.5;cursor:not-allowed}"
+    },
+    {
+      "name": "AI Accent Button",
+      "kind": "button",
+      "refersTo": "button-accent",
+      "description": "Violet button reserved for AI actions (write script, apply instruction).",
+      "html": "<button class=\"ds-btn-accent\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72\"/><path d=\"m14 7 3 3\"/></svg>Escrever roteiro com IA</button>",
+      "css": ".ds-btn-accent{display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 20px;border:0;border-radius:12px;background:var(--accent,#6d28d9);color:#fff;font:600 1rem/1 Geist,ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background-color 150ms}.ds-btn-accent:hover{background:var(--accent-hover,#5b21b6)}.ds-btn-accent:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Bordered white button for the alternative path.",
+      "html": "<button class=\"ds-btn-secondary\">Já tenho o texto</button>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border:1px solid var(--line-strong,#cdd1d9);border-radius:10px;background:var(--surface,#fff);color:var(--fg,#0d0f14);font:600 0.9375rem/1 Geist,ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background-color 150ms}.ds-btn-secondary:hover{background:var(--sunken,#f1f2f5)}.ds-btn-secondary:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:2px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Quiet muted action (back, more data, sample).",
+      "html": "<button class=\"ds-btn-ghost\">Voltar às ofertas</button>",
+      "css": ".ds-btn-ghost{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:var(--muted,#565c6b);font:600 0.875rem/1 Geist,ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background-color 150ms,color 150ms}.ds-btn-ghost:hover{background:var(--sunken,#f1f2f5);color:var(--fg,#0d0f14)}.ds-btn-ghost:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:2px}"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Text input with firm hairline and violet focus halo.",
+      "html": "<label class=\"ds-label\" for=\"ds-f\">Nome do mercado ou açougue</label><input id=\"ds-f\" class=\"ds-field\" placeholder=\"Ex.: Supermercado Família\">",
+      "css": ".ds-label{display:block;margin-bottom:6px;font:500 0.875rem/1.43 Geist,ui-sans-serif,system-ui,sans-serif;color:var(--fg,#0d0f14)}.ds-field{width:100%;background:var(--surface,#fff);border:1px solid var(--line-strong,#cdd1d9);border-radius:10px;padding:10px 14px;font:400 0.9375rem/1.4 Geist,ui-sans-serif,system-ui,sans-serif;color:var(--fg,#0d0f14);caret-color:var(--accent,#6d28d9);transition:border-color 120ms,box-shadow 120ms}.ds-field::placeholder{color:var(--muted,#565c6b);opacity:.85}.ds-field:hover{border-color:color-mix(in oklab,var(--line-strong,#cdd1d9) 60%,var(--fg,#0d0f14))}.ds-field:focus{outline:none;border-color:var(--accent,#6d28d9);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent,#6d28d9) 22%,transparent)}"
+    },
+    {
+      "name": "Choice Card",
+      "kind": "custom",
+      "refersTo": "choice-card-selected",
+      "description": "Radio tile for tone, voice and chime; selected gets violet border, wash and check.",
+      "html": "<div class=\"ds-choices\"><label class=\"ds-choice is-on\"><span class=\"ds-choice-name\">Varejão animado</span><span class=\"ds-choice-hint\">Rápido, alto e empolgado</span><svg class=\"ds-choice-check\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M20 6 9 17l-5-5\"/></svg></label><label class=\"ds-choice\"><span class=\"ds-choice-name\">Açougue e churrasco</span><span class=\"ds-choice-hint\">Apetitoso, valoriza os cortes</span></label></div>",
+      "css": ".ds-choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:Geist,ui-sans-serif,system-ui,sans-serif}.ds-choice{position:relative;display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--line,#e4e6eb);border-radius:10px;background:var(--surface,#fff);cursor:pointer;transition:border-color 150ms,background-color 150ms}.ds-choice:hover{border-color:var(--line-strong,#cdd1d9)}.ds-choice.is-on{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#f2edfd)}.ds-choice-name{font-size:.9375rem;font-weight:500;color:var(--fg,#0d0f14)}.ds-choice.is-on .ds-choice-name{color:var(--accent-fg,#5b21b6)}.ds-choice-hint{font-size:.875rem;color:var(--muted,#565c6b)}.ds-choice-check{position:absolute;top:12px;right:12px;color:var(--accent,#6d28d9)}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "refersTo": "segmented-option-selected",
+      "description": "Sunken track with a lifted white thumb for the selected option.",
+      "html": "<div class=\"ds-seg\"><span class=\"ds-seg-opt\">Curta <em>15s</em></span><span class=\"ds-seg-opt is-on\">Média <em>30s</em></span><span class=\"ds-seg-opt\">Longa <em>60s</em></span></div>",
+      "css": ".ds-seg{display:inline-grid;grid-template-columns:repeat(3,auto);padding:4px;border-radius:10px;background:var(--sunken,#f1f2f5);border:1px solid var(--line,#e4e6eb);font-family:Geist,ui-sans-serif,system-ui,sans-serif}.ds-seg-opt{display:flex;align-items:center;gap:6px;height:36px;padding:0 16px;border-radius:8px;font-size:.875rem;font-weight:500;color:var(--muted,#565c6b);cursor:pointer}.ds-seg-opt:hover{color:var(--fg,#0d0f14)}.ds-seg-opt em{font-style:normal;font-weight:400;color:var(--muted,#565c6b);font-variant-numeric:tabular-nums}.ds-seg-opt.is-on{background:var(--surface,#fff);color:var(--fg,#0d0f14);box-shadow:0 1px 3px rgb(0 0 0 / .1),0 1px 2px -1px rgb(0 0 0 / .1)}"
+    },
+    {
+      "name": "Sidebar Step Nav",
+      "kind": "nav",
+      "refersTo": "nav-step-active",
+      "description": "Numbered 1-2-3 steps: active violet, done green check, pending sunken.",
+      "html": "<ol class=\"ds-steps\"><li class=\"ds-step is-on\"><span class=\"ds-dot\">1</span><span><b>Ofertas</b><small>Loja e produtos</small></span></li><li class=\"ds-step is-done\"><span class=\"ds-dot\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\"><path d=\"M20 6 9 17l-5-5\"/></svg></span><span><b>Roteiro</b><small>Texto do locutor</small></span></li><li class=\"ds-step\"><span class=\"ds-dot\">3</span><span><b>Voz e MP3</b><small>Ouvir e baixar</small></span></li></ol>",
+      "css": ".ds-steps{list-style:none;margin:0;padding:0;width:232px;font-family:Geist,ui-sans-serif,system-ui,sans-serif}.ds-step{display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:8px;cursor:pointer;transition:background-color 150ms}.ds-step:hover{background:var(--sunken,#f1f2f5)}.ds-step.is-on{background:var(--accent-soft,#f2edfd)}.ds-dot{display:grid;place-items:center;width:24px;height:24px;border-radius:9999px;font-size:.75rem;font-weight:600;background:var(--sunken,#f1f2f5);color:var(--muted,#565c6b);border:1px solid var(--line,#e4e6eb)}.ds-step.is-on .ds-dot{background:var(--accent,#6d28d9);color:#fff;border-color:transparent}.ds-step.is-done .ds-dot{background:var(--success-soft,#e8f6ed);color:var(--success,#157f3c);border-color:transparent}.ds-step b{display:block;font-size:.9375rem;font-weight:500;color:var(--fg,#0d0f14)}.ds-step.is-on b{color:var(--accent-fg,#5b21b6)}.ds-step small{display:block;font-size:.75rem;color:var(--muted,#565c6b)}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White section card with hairline border and title row.",
+      "html": "<section class=\"ds-card\"><h2>Loja</h2><p>O locutor fala esse nome na abertura e no encerramento.</p></section>",
+      "css": ".ds-card{background:var(--surface,#fff);border:1px solid var(--line,#e4e6eb);border-radius:12px;padding:24px;font-family:Geist,ui-sans-serif,system-ui,sans-serif}.ds-card h2{margin:0 0 16px;font-size:1rem;font-weight:600;color:var(--fg,#0d0f14)}.ds-card p{margin:0;font-size:.875rem;color:var(--muted,#565c6b)}"
+    },
+    {
+      "name": "Player Bar",
+      "kind": "custom",
+      "refersTo": "player-bar",
+      "description": "Persistent bottom bar: circular ink play, title + tabular status, ink MP3 download, violet progress edge.",
+      "html": "<div class=\"ds-player\"><div class=\"ds-player-progress\"></div><button class=\"ds-play\" aria-label=\"Ouvir prévia\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M6 3v18l15-9z\"/></svg></button><div class=\"ds-player-meta\"><p class=\"ds-player-title\">Ofertas da Semana</p><p class=\"ds-player-sub\">~0:34 · Fenrir · Ding-dong de supermercado</p></div><button class=\"ds-btn-dl\">Baixar MP3</button></div>",
+      "css": ".ds-player{position:relative;display:flex;align-items:center;gap:12px;height:72px;padding:0 32px;background:color-mix(in oklab,var(--surface,#fff) 95%,transparent);backdrop-filter:blur(8px);border-top:1px solid var(--line,#e4e6eb);font-family:Geist,ui-sans-serif,system-ui,sans-serif}.ds-player-progress{position:absolute;top:-2px;left:0;height:4px;width:38%;background:var(--accent,#6d28d9)}.ds-play{display:grid;place-items:center;width:48px;height:48px;border:0;border-radius:9999px;background:var(--ink,#0d0f14);color:var(--on-ink,#fff);cursor:pointer;transition:background-color 150ms}.ds-play:hover,.ds-btn-dl:hover{background:var(--ink-hover,#262a33)}.ds-play:focus-visible,.ds-btn-dl:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:2px}.ds-player-meta{flex:1;min-width:0}.ds-player-title{margin:0;font-size:.9375rem;font-weight:600;color:var(--fg,#0d0f14)}.ds-player-sub{margin:0;font-size:.875rem;color:var(--muted,#565c6b);font-variant-numeric:tabular-nums}.ds-btn-dl{height:44px;padding:0 16px;border:0;border-radius:10px;background:var(--ink,#0d0f14);color:var(--on-ink,#fff);font-weight:600;font-size:.9375rem;cursor:pointer}"
+    },
+    {
+      "name": "Toast",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "Floating status message with Float shadow and optional violet action.",
+      "html": "<div class=\"ds-toast\" role=\"status\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#157f3c\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m9 12 2 2 4-4\"/></svg><div><p class=\"ds-toast-t\">Roteiro pronto</p><p class=\"ds-toast-d\">Revise o texto e escolha a voz.</p><button class=\"ds-toast-a\">Desfazer</button></div></div>",
+      "css": ".ds-toast{display:flex;align-items:flex-start;gap:12px;max-width:384px;padding:12px 16px;background:var(--surface,#fff);border:1px solid var(--line,#e4e6eb);border-radius:12px;box-shadow:var(--shadow-float,0 8px 24px -6px rgb(13 15 20 / .14),0 2px 6px -2px rgb(13 15 20 / .08));font-family:Geist,ui-sans-serif,system-ui,sans-serif}.ds-toast-t{margin:0;font-size:.875rem;font-weight:600;color:var(--fg,#0d0f14)}.ds-toast-d{margin:2px 0 0;font-size:.875rem;color:var(--muted,#565c6b)}.ds-toast-a{margin-top:8px;padding:0;border:0;background:none;font-size:.875rem;font-weight:600;color:var(--accent-fg,#5b21b6);cursor:pointer}.ds-toast-a:hover{text-decoration:underline}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Console",
+    "overview": "VozVarejo is the category-standard SaaS voice studio executed with care: a cool, near-white workspace where the path offers → script → voice & MP3 is always the most obvious thing on screen. The interface steps back so the shopkeeper's content (store name, products, prices, the script, the chosen voice) carries the screen. Hierarchy comes from ink weight, one accent hue, and 1px structure, never from colored panels competing for attention.\n\nDensity is moderate and touch-safe: controls are 36–48px tall, cards breathe at 20–24px padding, and every long action reports progress in place or through a floating toast. Light and dark themes are first-class siblings driven by the same token names; dark swaps the ground to near-black and lifts the violet to a lavender that reads on dark surfaces.\n\nThe system explicitly refuses the generic dashboard of stacked orange cards and buttons that compete with each other: one dark primary action per decision point, violet only where the user's attention or the AI is involved.",
+    "keyCharacteristics": [
+      "Cool near-white ground, white surfaces, 1px borders as the main structural device.",
+      "Near-black ink for the primary action; violet as the single accent (active step, selection, AI actions, progress).",
+      "Green, amber, red are state colors only, always paired with a soft tinted ground.",
+      "Geist throughout, semibold for hierarchy, tabular numerals for prices, counts and times.",
+      "8/10/12px radii by size; soft shadows only on floating layers."
+    ],
+    "rules": [
+      {
+        "name": "The One Violet Rule",
+        "body": "Violet marks exactly three things: where the user is (active step, selection), what the AI does (AI-action buttons, generation progress), and focus. It is never decoration, never a section background, never a second brand color.",
+        "section": "colors"
+      },
+      {
+        "name": "The State-Only Rule",
+        "body": "Green, amber and red appear only to report a state, always as a strong hue on its own soft tint. No product, template or category is ever color-coded with them.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink-Leads Rule",
+        "body": "The move-forward action in any area is a near-black ink button; violet buttons are reserved for AI work.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "Every price, duration, timestamp and count uses tabular numerals so values align and don't jitter while playing.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sentence-Case Rule",
+        "body": "No uppercase, no letter-spaced labels. Group labels are small muted sentence-case text.",
+        "section": "typography"
+      },
+      {
+        "name": "The Floating-Only Rule",
+        "body": "Cards, buttons, fields and choice cards never carry a shadow. If it does not float over the page, it does not cast one; the segmented-control thumb is the single in-surface exception.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do build every view from Cool Paper ground, White Surface cards with a 1px Hairline, and 12px corners.",
+      "Do give each decision point one ink primary button; use the violet button only for AI work.",
+      "Do show selection with violet border + Violet Wash + violet check, never by color alone.",
+      "Do pair every state hue with its soft tint and a text label or icon.",
+      "Do set prices, durations, timestamps and counts in tabular numerals.",
+      "Do keep the 2px violet focus outline (2px offset) on every interactive element, and the 3px halo on fields.",
+      "Do define any new color in both `:root` and `.dark` under the same token name.",
+      "Do honor reduced motion; entrances stay under 300ms with the `cubic-bezier(0.16, 1, 0.3, 1)` ease-out."
+    ],
+    "donts": [
+      "Don't introduce a second accent hue or color-code products, templates or categories.",
+      "Don't put shadows on cards, buttons, fields or choice cards; shadows belong to toasts and dialogs.",
+      "Don't use uppercase, letter-spaced eyebrow or kicker labels above headings.",
+      "Don't place a second forward action beside the ink button; pair it with a secondary or ghost button.",
+      "Don't use green, amber or red for anything but state.",
+      "Don't hardcode raw hex in components; reference the semantic tokens."
+    ]
+  }
+}

@@ -357,3 +357,26 @@ export function triggerFileDownload(blob: Blob, filename: string) {
     URL.revokeObjectURL(url);
   }, 500);
 }
+
+/**
+ * Compartilha o MP3 pelo menu nativo do aparelho (WhatsApp, etc.).
+ * Retorna 'shared', 'cancelled' ou 'downloaded' (quando o navegador não compartilha arquivos).
+ */
+export async function shareAudioFile(
+  blob: Blob,
+  filename: string,
+  title: string
+): Promise<'shared' | 'cancelled' | 'downloaded'> {
+  const file = new File([blob], filename, { type: 'audio/mpeg' });
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title });
+      return 'shared';
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return 'cancelled';
+      throw err;
+    }
+  }
+  triggerFileDownload(blob, filename);
+  return 'downloaded';
+}

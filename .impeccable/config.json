@@ -1,0 +1,89 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-10-28T15:22:26.919Z",
+        "reason": "builder: decision-round sketch of a direction, not shipping UI; round closed"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-10-28T15:22:26.933Z",
+        "reason": "builder: decision-round sketch of a direction, not shipping UI; round closed"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-10-28T15:22:26.946Z",
+        "reason": "builder: decision-round sketch of a direction, not shipping UI; round closed"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/model-pick.html"
+        ],
+        "createdAt": "2026-10-28T15:22:26.957Z",
+        "reason": "builder: decision-round sketch of a direction, not shipping UI; round closed"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/challenger-jcard.html"
+        ],
+        "createdAt": "2026-10-28T15:22:26.969Z",
+        "reason": "builder: decision-round sketch of a direction, not shipping UI; round closed"
+      },
+      {
+        "rule": "ai-color-palette",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-10-28T15:22:37.093Z",
+        "reason": "builder: decision-round sketch, not shipping UI; round closed"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-10-28T15:34:25.518Z",
+        "reason": "builder: decision-round sketch of an unchosen direction, not shipping UI"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/model-pick.html"
+        ],
+        "createdAt": "2026-10-28T15:34:25.531Z",
+        "reason": "builder: decision-round sketch of an unchosen direction, not shipping UI"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/challenger-jcard.html"
+        ],
+        "createdAt": "2026-10-28T15:34:25.563Z",
+        "reason": "builder: decision-round sketch of an unchosen direction, not shipping UI"
+      }
+    ]
+  }
+}

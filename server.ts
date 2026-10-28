@@ -56,6 +56,11 @@ async function generateTextWithFallback(
   throw lastError || new Error('Todos os modelos de texto estão ocupados no momento.');
 }
 
+// Status: informa ao front se a IA (Gemini) está configurada
+app.get('/api/status', (_req: Request, res: Response) => {
+  res.json({ ai: Boolean(process.env.GEMINI_API_KEY) });
+});
+
 // Endpoint 1: Roteirizador Promocional com IA
 app.post('/api/generate-script', async (req: Request, res: Response) => {
   const {
@@ -317,7 +322,7 @@ app.post('/api/generate-tts', async (req: Request, res: Response) => {
     return res.json({
       success: false,
       fallbackToWebSpeech: true,
-      error: 'Chave GEMINI_API_KEY não configurada.',
+      error: 'A voz profissional ainda não está ativada. Peça a quem instalou o VozVarejo para ativar a IA.',
     });
   }
 

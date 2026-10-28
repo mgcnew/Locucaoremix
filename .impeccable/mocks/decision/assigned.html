@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,400..900&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:#f3f1ec;color:#14110f;font-family:'Atkinson Hyperlegible',sans-serif}
+.disp{font-family:'Anybody',sans-serif;font-stretch:62%;font-weight:900;text-transform:uppercase;letter-spacing:.005em;line-height:.9}
+header{height:72px;background:#14110f;color:#fff;display:flex;align-items:center;padding:0 40px;gap:32px}
+.logo{font-size:34px}
+.logo b{color:#ffe11a}
+nav{display:flex;gap:4px;margin-left:auto}
+nav a{font-size:15px;font-weight:700;padding:10px 16px;border-radius:8px;color:#cfc8bd}
+nav a.on{background:#fff;color:#14110f}
+.fountain{height:10px;background:linear-gradient(90deg,#ff2e88,#ff7a00 45%,#ffe11a)}
+.steps{display:flex;gap:0;padding:20px 40px 0}
+.step{flex:1;display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:12px 12px 0 0;font-weight:700;font-size:15px;color:#6b635a}
+.step .n{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-family:Anybody;font-weight:900;font-size:16px;background:#e2ded6}
+.step.s1{background:#ff2e88;color:#fff}.step.s1 .n{background:#14110f;color:#ff2e88}
+.step.s2{background:#fff}.step.s2 .n{background:#ffe11a;color:#14110f}
+main{display:grid;grid-template-columns:520px 1fr;gap:24px;padding:0 40px}
+.panel{background:#fff;border-radius:0 0 16px 16px;padding:24px 28px}
+.p1{border-top:6px solid #ff2e88}
+.p2{border-top:6px solid #ffe11a;border-radius:16px;margin-top:-1px}
+h2{font-size:34px;margin-bottom:6px}
+.sub{font-size:14px;color:#6b635a;margin-bottom:18px}
+label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
+.inp{border:2px solid #d9d4ca;border-radius:10px;padding:11px 14px;font-size:16px;margin-bottom:16px}
+.row{display:grid;grid-template-columns:1fr auto 40px;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #ece8e0}
+.row .nm{font-size:16px;font-weight:700}
+.row .u{font-size:13px;color:#6b635a}
+.price{font-family:Anybody;font-stretch:62%;font-weight:900;font-size:40px;line-height:1;color:#14110f;display:flex;align-items:flex-start}
+.price small{font-size:14px;margin-right:3px;margin-top:5px}
+.price sup{font-size:20px;margin-top:2px}
+.trash{width:36px;height:36px;border:2px solid #e2ded6;border-radius:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 20px}
+.chip{border:2px dashed #c9c2b6;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700}
+.cta{display:flex;align-items:center;justify-content:center;gap:10px;height:56px;border-radius:12px;background:#14110f;color:#fff;font-size:17px;font-weight:700}
+.cta i{width:10px;height:10px;border-radius:50%;background:#ff2e88}
+.headline{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px}
+.headline h3{font-size:46px}
+.budget{font-size:14px;font-weight:700;text-align:right}
+.meter{width:240px;height:10px;border-radius:5px;background:#ece8e0;margin-top:6px;overflow:hidden}
+.meter div{width:76%;height:100%;background:#1fbf5f}
+.script{font-size:18px;line-height:1.6;background:#faf9f6;border:2px solid #e6e1d7;border-radius:12px;padding:18px 20px;height:190px;overflow:hidden}
+.script mark{background:#ffe11a;padding:0 3px}
+.tweaks{display:flex;gap:8px;margin:14px 0 20px}
+.tw{border:2px solid #d9d4ca;border-radius:999px;padding:7px 14px;font-size:14px;font-weight:700}
+.cast{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.v{border:2px solid #e2ded6;border-radius:12px;padding:12px}
+.v b{display:block;font-size:16px}.v span{font-size:12px;color:#6b635a}
+.v.on{border-color:#14110f;box-shadow:inset 0 0 0 2px #14110f;background:#fff9c9}
+.player{display:flex;align-items:center;gap:18px;background:#14110f;border-radius:14px;padding:14px 18px;color:#fff}
+.play{width:52px;height:52px;border-radius:50%;background:#ffe11a}
+.wave{flex:1;height:40px;background:repeating-linear-gradient(90deg,#ff2e88 0 3px,transparent 3px 7px);mask:linear-gradient(#000,#000);opacity:.9;border-radius:4px}
+.dl{background:#1fbf5f;color:#14110f;border-radius:10px;padding:14px 20px;font-weight:700;font-size:16px}
+</style></head><body>
+<header><div class="disp logo">Voz<b>Varejo</b></div>
+<nav><a class="on">Criar locução</a><a>Modelos prontos</a><a>Histórico · 2</a></nav></header>
+<div class="fountain"></div>
+<div class="steps">
+ <div class="step s1"><span class="n">1</span>Ofertas da semana</div>
+ <div class="step s2"><span class="n">2</span>Roteiro</div>
+ <div class="step"><span class="n">3</span>Voz &amp; MP3</div>
+</div>
+<main>
+ <section class="panel p1">
+  <h2 class="disp">Ofertas</h2><p class="sub">O que o locutor vai anunciar hoje</p>
+  <label>Loja</label><div class="inp">Açougue &amp; Casa de Carnes Boi de Ouro</div>
+  <div class="row"><div><div class="nm">Picanha Bovina Maturada</div><div class="u">por kg</div></div><div class="price"><small>R$</small>49<sup>,90</sup></div><div class="trash"></div></div>
+  <div class="row"><div><div class="nm">Linguiça Toscana Especial</div><div class="u">por kg</div></div><div class="price"><small>R$</small>18<sup>,90</sup></div><div class="trash"></div></div>
+  <div class="row"><div><div class="nm">Carvão Vegetal 3 kg</div><div class="u">pacote</div></div><div class="price"><small>R$</small>13<sup>,90</sup></div><div class="trash"></div></div>
+  <div class="chips"><span class="chip">+ Alcatra com Maminha</span><span class="chip">+ Fraldinha</span><span class="chip">+ Costela Gaúcha</span></div>
+  <div class="cta"><i></i>Escrever roteiro com IA</div>
+ </section>
+ <section class="panel p2">
+  <div class="headline"><h3 class="disp">Sextou do churrasco</h3>
+   <div class="budget">~28 s de 30 s<div class="meter"><div></div></div></div></div>
+  <div class="script">Atenção clientes do Boi de Ouro! Parou tudo pra ouvir as ofertas de hoje! <mark>Picanha bovina maturada por apenas quarenta e nove e noventa o quilo!</mark> Linguiça toscana fresquinha a dezoito e noventa, e carvão vegetal de três quilos por treze e noventa! Vem pro Boi de Ouro, aqui a qualidade é sagrada!</div>
+  <div class="tweaks"><span class="tw">Mais curto</span><span class="tw">Mais energia</span><span class="tw">Incluir Pix e cartão</span><span class="tw">+ Pedir outra coisa</span></div>
+  <div class="cast">
+   <div class="v on"><b>Fenrir</b><span>Grave, voz de varejão</span></div>
+   <div class="v"><b>Puck</b><span>Jovem e rápido</span></div>
+   <div class="v"><b>Kore</b><span>Firme e simpática</span></div>
+   <div class="v"><b>Zephyr</b><span>Leve e acolhedora</span></div>
+  </div>
+  <div class="player"><div class="play"></div><div class="wave"></div><span>0:28</span><div class="dl">Baixar MP3</div></div>
+ </section>
+</main>
+</body></html>

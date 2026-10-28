@@ -1,317 +1,373 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SavedLocution } from '../types';
-import {
-  History,
-  Star,
-  Play,
-  Pause,
-  Download,
-  Trash2,
-  Copy,
-  Check,
-  Search,
-  RotateCcw,
-  Sparkles,
-} from 'lucide-react';
+import { Check, Copy, Download, History, Pause, PenLine, Play, Search, SearchX, Share2, Star, Trash2 } from 'lucide-react';
 import {
   triggerFileDownload,
   createMixedAudioBuffer,
   audioBufferToMp3Blob,
   audioBufferToWavBlob,
+  shareAudioFile,
 } from '../utils/audioExporter';
+import { getAudio, putAudio } from '../utils/audioStore';
+import { Button, IconButton, slugify } from './ui';
+import { useToast } from './Toast';
+import { AiStatus } from './Sidebar';
 
 interface Props {
   savedList: SavedLocution[];
   onToggleFavorite: (id: string) => void;
   onDelete: (id: string) => void;
   onLoadIntoStudio: (item: SavedLocution) => void;
+  onGoToStudio: () => void;
+  aiStatus: AiStatus;
 }
+
+const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+const formatDate = (iso: string) => {
+  const date = new Date(iso);
+  const days = Math.floor((Date.now() - date.getTime()) / 86400000);
+  if (days <= 0) return 'Hoje';
+  if (days === 1) return 'Ontem';
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+};
 
 export const HistoryView: React.FC<Props> = ({
   savedList,
   onToggleFavorite,
   onDelete,
   onLoadIntoStudio,
+  onGoToStudio,
+  aiStatus,
 }) => {
+  const toast = useToast();
   const [search, setSearch] = useState('');
   const [filterFavorites, setFilterFavorites] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [sharingId, setSharingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCache = useRef(new Map<string, string>());
 
-  const filteredList = savedList.filter((item) => {
-    const matchesFav = !filterFavorites || item.isFavorite;
-    const matchesSearch =
-      item.headline.toLowerCase().includes(search.toLowerCase()) ||
-      item.script.toLowerCase().includes(search.toLowerCase()) ||
-      item.storeName.toLowerCase().includes(search.toLowerCase());
-    return matchesFav && matchesSearch;
-  });
+  useEffect(
+    () => () => {
+      audioRef.current?.pause();
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    },
+    []
+  );
 
-  const synthesizeAudioForItem = async (item: SavedLocution): Promise<string | null> => {
-    if (item.audioBase64) return item.audioBase64;
+  const q = normalize(search.trim());
+  const filteredList = savedList.filter(
+    (item) =>
+      (!filterFavorites || item.isFavorite) &&
+      (!q || [item.headline, item.script, item.storeName].some((f) => normalize(f).includes(q)))
+  );
+  const favoritesCount = savedList.filter((i) => i.isFavorite).length;
+
+  /** Busca ou gera a voz profissional do item. Lança Error com mensagem amigável. */
+  const synthesizeAudioForItem = async (item: SavedLocution): Promise<string> => {
+    const cached = item.audioBase64 || audioCache.current.get(item.id) || (await getAudio(item.id));
+    if (cached) return cached;
+    if (aiStatus === 'offline') throw new Error('A voz profissional ainda não está ativada. Peça a quem instalou o VozVarejo para ativar a IA.');
+    let data: any;
     try {
-      const voiceKey = item.voiceName.split(' ')[0] || 'Fenrir';
       const res = await fetch('/api/generate-tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: item.script,
-          voiceName: voiceKey,
-          tone: item.tone,
-        }),
+        body: JSON.stringify({ text: item.script, voiceName: item.voiceName.split(' ')[0] || 'Fenrir', tone: item.tone }),
       });
-      const data = await res.json();
-      if (data.success && data.audioBase64) {
-        item.audioBase64 = data.audioBase64;
-        return data.audioBase64;
-      }
-    } catch (e) {
-      console.error(e);
+      data = await res.json();
+    } catch {
+      throw new Error('Sem conexão com o servidor.');
     }
-    return null;
+    if (data.success && data.audioBase64) {
+      audioCache.current.set(item.id, data.audioBase64);
+      putAudio(item.id, data.audioBase64);
+      return data.audioBase64;
+    }
+    throw new Error(data.error || 'O serviço de voz não respondeu.');
+  };
+
+  const stopAll = () => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    setPlayingId(null);
+  };
+
+  const playBrowserVoice = (item: SavedLocution) => {
+    if (!('speechSynthesis' in window)) {
+      setPlayingId(null);
+      toast.show('error', 'Seu navegador não tem voz sintetizada', { description: 'Tente pelo Chrome ou Edge.' });
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(item.script);
+    utterance.lang = 'pt-BR';
+    utterance.onend = () => setPlayingId(null);
+    utterance.onerror = () => setPlayingId(null);
+    setPlayingId(item.id);
+    window.speechSynthesis.speak(utterance);
   };
 
   const handlePlayAudio = async (item: SavedLocution) => {
     if (playingId === item.id) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-      setPlayingId(null);
+      stopAll();
       return;
     }
-
-    setPlayingId(item.id);
-    const base64 = await synthesizeAudioForItem(item);
-    if (base64) {
-      try {
-        const mixed = await createMixedAudioBuffer(base64, item.chimeSound || 'supermarket_bell');
-        const wavBlob = audioBufferToWavBlob(mixed);
-        const url = URL.createObjectURL(wavBlob);
-        if (audioRef.current) audioRef.current.pause();
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = () => {
-          setPlayingId(null);
-          URL.revokeObjectURL(url);
-        };
-        await audio.play();
-        return;
-      } catch (e) {
-        console.error(e);
+    stopAll();
+    setLoadingAudioId(item.id);
+    try {
+      const base64 = await synthesizeAudioForItem(item);
+      const mixed = await createMixedAudioBuffer(base64, item.chimeSound || 'supermarket_bell');
+      const url = URL.createObjectURL(audioBufferToWavBlob(mixed));
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      const finish = () => {
+        setPlayingId((id) => (id === item.id ? null : id));
+        URL.revokeObjectURL(url);
+      };
+      audio.onended = finish;
+      audio.onerror = finish;
+      await audio.play();
+      setPlayingId(item.id);
+    } catch (err) {
+      if (aiStatus !== 'offline') {
+        toast.show('info', 'Tocando com a voz do navegador', {
+          description: err instanceof Error ? err.message : undefined,
+        });
       }
-    }
-
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(item.script);
-      utterance.lang = 'pt-BR';
-      utterance.onend = () => setPlayingId(null);
-      window.speechSynthesis.speak(utterance);
-    } else {
-      setPlayingId(null);
+      playBrowserVoice(item);
+    } finally {
+      setLoadingAudioId(null);
     }
   };
 
   const handleDownloadMp3 = async (item: SavedLocution) => {
     setDownloadingId(item.id);
+    const toastId = toast.show('loading', 'Preparando o MP3…', { description: item.headline });
     try {
       const base64 = await synthesizeAudioForItem(item);
-      if (!base64) {
-        setDownloadingId(null);
-        return;
-      }
-      const mixedBuffer = await createMixedAudioBuffer(
-        base64,
-        item.chimeSound || 'supermarket_bell'
-      );
-      const mp3Blob = audioBufferToMp3Blob(mixedBuffer);
-      const safeTitle = (item.headline || 'locucao_varejo')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_|_$/g, '');
-      triggerFileDownload(mp3Blob, `${safeTitle || 'locucao'}.mp3`);
-    } catch (e) {
-      console.error(e);
+      const mixed = await createMixedAudioBuffer(base64, item.chimeSound || 'supermarket_bell');
+      const fileName = `${slugify(item.headline) || 'locucao'}.mp3`;
+      triggerFileDownload(audioBufferToMp3Blob(mixed), fileName);
+      toast.update(toastId, 'success', 'MP3 baixado', { description: fileName });
+    } catch (err) {
+      toast.update(toastId, 'error', 'Não foi possível gerar o MP3', {
+        description: err instanceof Error ? err.message : 'Tente de novo em alguns segundos.',
+      });
     } finally {
       setDownloadingId(null);
     }
   };
 
-  const handleCopyText = (item: SavedLocution) => {
-    navigator.clipboard.writeText(item.script);
-    setCopiedId(item.id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleShare = async (item: SavedLocution) => {
+    setSharingId(item.id);
+    try {
+      const base64 = await synthesizeAudioForItem(item);
+      const mixed = await createMixedAudioBuffer(base64, item.chimeSound || 'supermarket_bell');
+      const fileName = `${slugify(item.headline) || 'locucao'}.mp3`;
+      const result = await shareAudioFile(audioBufferToMp3Blob(mixed), fileName, item.headline);
+      if (result === 'downloaded') {
+        toast.show('info', 'MP3 baixado para enviar', {
+          description: 'Este navegador não compartilha arquivos direto. Anexe o MP3 baixado no WhatsApp.',
+        });
+      }
+    } catch (err) {
+      toast.show('error', 'Não foi possível compartilhar', {
+        description: err instanceof Error ? err.message : 'Tente de novo em alguns segundos.',
+      });
+    } finally {
+      setSharingId(null);
+    }
+  };
+
+  const handleCopyText = async (item: SavedLocution) => {
+    try {
+      await navigator.clipboard.writeText(item.script);
+      setCopiedId(item.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast.show('error', 'Não foi possível copiar', { description: 'Abra o texto e copie manualmente.' });
+    }
+  };
+
+  const handleDelete = (item: SavedLocution) => {
+    if (playingId === item.id) stopAll();
+    onDelete(item.id);
   };
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto">
-      {/* Barra de Busca e Filtro Simples */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
-        <div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <History className="w-4 h-4 text-amber-500" />
-            Locuções Salvas ({filteredList.length})
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Ouça, baixe em MP3 ou reabra qualquer texto no estúdio
-          </p>
-        </div>
+    <div className="pb-24 lg:pb-8">
+      <header className="mb-6">
+        <h1 className="text-2xl sm:text-[1.75rem] font-semibold tracking-tight text-fg">Histórico</h1>
+        <p className="text-[0.9375rem] text-muted mt-1">Ouça de novo, baixe o MP3 ou reabra qualquer locução no estúdio.</p>
+      </header>
 
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 sm:w-60">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+      {aiStatus === 'offline' && savedList.length > 0 && (
+        <p className="text-sm text-muted mb-4" role="note">
+          Modo sem IA: as prévias tocam com a voz do próprio aparelho e o download de MP3 fica indisponível.
+        </p>
+      )}
+
+      {savedList.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
+          <div className="relative flex-1 sm:max-w-sm">
+            <Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
+            <label htmlFor="history-search" className="sr-only">
+              Buscar no histórico
+            </label>
             <input
-              type="text"
-              placeholder="Buscar no histórico..."
+              id="history-search"
+              type="search"
+              placeholder="Buscar por título ou texto"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-amber-500"
+              className="field pl-9"
             />
           </div>
-
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            aria-pressed={filterFavorites}
             onClick={() => setFilterFavorites(!filterFavorites)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 ${
-              filterFavorites
-                ? 'bg-amber-500 text-white border-amber-500'
-                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-            }`}
+            className={filterFavorites ? 'border-accent bg-accent-soft text-accent-fg hover:bg-accent-soft' : ''}
+            icon={<Star className={`w-4 h-4 ${filterFavorites ? 'fill-current' : ''}`} />}
           >
-            <Star className={`w-3.5 h-3.5 ${filterFavorites ? 'fill-current' : ''}`} />
-            <span>Favoritos</span>
-          </button>
+            Favoritos <span className="tabular-nums text-muted font-normal">{favoritesCount}</span>
+          </Button>
+          <p className="text-sm text-muted sm:ml-auto tabular-nums" aria-live="polite">
+            {filteredList.length} de {savedList.length}
+          </p>
         </div>
-      </div>
+      )}
 
-      {/* Lista de Locuções */}
-      {filteredList.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center space-y-2">
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            Nenhuma locução encontrada
+      {savedList.length === 0 ? (
+        <div className="bg-surface border border-line rounded-xl px-6 py-14 text-center">
+          <History className="w-8 h-8 text-subtle mx-auto mb-3" aria-hidden="true" />
+          <p className="text-base font-semibold text-fg">Nenhuma locução salva ainda</p>
+          <p className="text-sm text-muted mt-1 mb-5 max-w-sm mx-auto">
+            No último passo do estúdio, toque em “Salvar no histórico” para guardar a locução aqui.
           </p>
-          <p className="text-xs text-slate-400">
-            Crie uma locução na aba "Criar Locução" e clique em "Salvar no Histórico".
+          <Button variant="primary" size="sm" onClick={onGoToStudio} icon={<PenLine className="w-4 h-4" />}>
+            Criar locução
+          </Button>
+        </div>
+      ) : filteredList.length === 0 ? (
+        <div className="bg-surface border border-line rounded-xl px-6 py-14 text-center">
+          <SearchX className="w-8 h-8 text-subtle mx-auto mb-3" aria-hidden="true" />
+          <p className="text-base font-semibold text-fg">Nada encontrado</p>
+          <p className="text-sm text-muted mt-1 mb-5">
+            {filterFavorites && !q ? 'Você ainda não marcou nenhuma favorita.' : 'Tente outra palavra ou limpe os filtros.'}
           </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setSearch('');
+              setFilterFavorites(false);
+            }}
+          >
+            Limpar filtros
+          </Button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredList.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-                    {item.headline}
-                  </h3>
-                  <span className="text-xs text-slate-400">
-                    {item.storeName} &bull; Voz {item.voiceName}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
+        <ul className="space-y-3">
+          {filteredList.map((item) => {
+            const isPlaying = playingId === item.id;
+            const isLoading = loadingAudioId === item.id;
+            const expanded = expandedId === item.id;
+            return (
+              <li key={item.id} className="bg-surface border border-line rounded-xl p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-base font-semibold text-fg leading-snug">
+                      {item.headline}
+                      {item.id.startsWith('starter_') && (
+                        <span className="ml-2 align-middle text-xs font-medium text-muted px-1.5 py-0.5 rounded bg-sunken border border-line">
+                          Exemplo
+                        </span>
+                      )}
+                    </h2>
+                    <p className="text-sm text-muted mt-0.5">
+                      {formatDate(item.createdAt)} · Voz {item.voiceName.split(' (')[0]}
+                      <span className="hidden sm:inline"> · {item.storeName}</span>
+                    </p>
+                  </div>
+                  <IconButton
+                    label={item.isFavorite ? 'Remover dos favoritos' : 'Marcar como favorita'}
+                    aria-pressed={item.isFavorite}
                     onClick={() => onToggleFavorite(item.id)}
-                    className={`p-1.5 rounded-lg transition ${
-                      item.isFavorite
-                        ? 'text-amber-500'
-                        : 'text-slate-400 hover:text-amber-500'
-                    }`}
-                    title="Favoritar"
+                    className={item.isFavorite ? 'text-warning hover:text-warning' : ''}
                   >
-                    <Star className={`w-4 h-4 ${item.isFavorite ? 'fill-current' : ''}`} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(item.id)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 transition"
-                    title="Excluir"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    <Star className={`w-[18px] h-[18px] ${item.isFavorite ? 'fill-current' : ''}`} />
+                  </IconButton>
                 </div>
-              </div>
 
-              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 leading-relaxed">
-                "{item.script}"
-              </p>
+                <p className={`mt-3 text-[0.9375rem] text-fg/85 leading-relaxed ${expanded ? '' : 'line-clamp-2'}`}>{item.script}</p>
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(expanded ? null : item.id)}
+                  aria-expanded={expanded}
+                  className="mt-1 text-sm font-medium text-accent-fg hover:underline"
+                >
+                  {expanded ? 'Mostrar menos' : 'Ver texto completo'}
+                </button>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={() => handlePlayAudio(item)}
-                    className="px-3.5 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold flex items-center gap-1.5 transition"
+                    loading={isLoading}
+                    icon={isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
                   >
-                    {playingId === item.id ? (
-                      <>
-                        <Pause className="w-3.5 h-3.5 fill-current" /> Pausar
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-3.5 h-3.5 fill-current" /> Ouvir
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
+                    {isLoading ? 'Gerando voz…' : isPlaying ? 'Parar' : 'Ouvir'}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => handleDownloadMp3(item)}
-                    disabled={downloadingId === item.id}
-                    className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition disabled:opacity-50"
+                    disabled={aiStatus === 'offline'}
+                    title={aiStatus === 'offline' ? 'MP3 indisponível no modo sem IA' : undefined}
+                    loading={downloadingId === item.id}
+                    icon={<Download className="w-4 h-4" />}
                   >
-                    {downloadingId === item.id ? (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5 animate-spin" /> Gerando MP3...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-3.5 h-3.5" /> Baixar MP3
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
+                    Baixar MP3
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleShare(item)}
+                    disabled={aiStatus === 'offline'}
+                    title={aiStatus === 'offline' ? 'Compartilhar MP3 indisponível no modo sem IA' : undefined}
+                    loading={sharingId === item.id}
+                    icon={<Share2 className="w-4 h-4" />}
+                  >
+                    Compartilhar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleCopyText(item)}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                    icon={copiedId === item.id ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                   >
-                    {copiedId === item.id ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-600" /> Copiado
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" /> Copiar
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onLoadIntoStudio(item)}
-                    className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center gap-1.5 transition"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" /> Editar no Estúdio
-                  </button>
+                    {copiedId === item.id ? 'Copiado' : 'Copiar'}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => onLoadIntoStudio(item)} icon={<PenLine className="w-4 h-4" />}>
+                    Editar no estúdio
+                  </Button>
+                  <IconButton label={`Excluir “${item.headline}”`} tone="danger" onClick={() => handleDelete(item)} className="ml-auto">
+                    <Trash2 className="w-4 h-4" />
+                  </IconButton>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );
